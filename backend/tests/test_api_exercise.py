@@ -136,6 +136,46 @@ class TestGetExerciseSummary:
         assert isinstance(data["netCalorieResult"], dict)
 
 
+class TestSummaryUsesDerivedProfileTargets:
+    """
+    Regression: get_summary previously read non-existent calorie_target/bmr keys off the
+    stored profile and silently fell back to 2000/1500. It must instead derive the same
+    targets the dashboard uses, so the exercise budget matches /user/profile (PRD 9.7).
+    """
+
+    # Known weight (60 kg) so the derived target lands clearly off the 2000 default.
+    PROFILE = {
+        "sex": "female",
+        "age": 20,
+        "height_cm": 163.0,
+        "weight_kg": 60.0,
+        "goal": "build_muscle",
+        "activity_level": "lightly_active",
+        "net_calorie_mode": "fixed",
+        "calorie_surplus": 400,
+    }
+
+    def _derived_targets(self) -> dict:
+        return client.get("/user/profile").json()["targets"]
+
+    def test_summary_target_matches_derived_effective_calories(self):
+        client.put("/user/profile", json=self.PROFILE)
+        expected = self._derived_targets()["effectiveCalories"]
+        assert expected != 2000  # sanity: derived value is genuinely not the default
+
+        result = client.get(f"/exercise/summary/{EXERCISE_DATE}").json()["netCalorieResult"]
+        # fixed mode → result["target"] is the base calorie budget for the day
+        assert result["target"] == expected
+
+    def test_summary_bmr_floor_matches_derived_bmr_in_net_mode(self):
+        client.put("/user/profile", json={**self.PROFILE, "net_calorie_mode": "net"})
+        expected_bmr_floor = int(round(self._derived_targets()["bmr"]))
+        assert expected_bmr_floor != 1500  # sanity: not the default
+
+        result = client.get(f"/exercise/summary/{EXERCISE_DATE}").json()["netCalorieResult"]
+        assert result["bmr_floor"] == expected_bmr_floor
+
+
 class TestDeleteExerciseEntry:
     def test_delete_returns_204(self):
         entry = _post_workout()

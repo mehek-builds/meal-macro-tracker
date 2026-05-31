@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 
 import app.store as store
 from app.models.exercise import ExerciseSummary, WorkoutEntry
-from app.models.user import NetCalorieMode
+from app.routers.user import _derive_targets
 from app.services.met import MET_TABLE, calories_from_met
 from app.services.net_calories import calculate_net_calories
 
@@ -77,13 +77,16 @@ def get_summary(date: str) -> ExerciseSummary:
     food_entries = store.query(LOG_COLLECTION, date=date)
     food_calories = sum(e.get("calories", 0) for e in food_entries)
 
-    # Pull user profile for base target + mode + bmr
+    # The stored profile has no calorie_target/bmr fields (those are derived onto the
+    # Targets model, not persisted), so reuse the dashboard's _derive_targets to get the
+    # real luteal-adjusted target and BMR. Keeps the exercise budget in sync with /user/profile.
     users = store.list_all(USER_COLLECTION)
     if users:
         user = users[0]
-        base_target = user.get("calorie_target", 2000)
+        targets = _derive_targets(user)
+        base_target = targets.effective_calories
         mode = user.get("net_calorie_mode", "fixed")
-        bmr_floor = int(user.get("bmr", 1500))
+        bmr_floor = int(round(targets.bmr))
     else:
         base_target = 2000
         mode = "fixed"
