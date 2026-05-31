@@ -36,7 +36,11 @@ class Settings(BaseSettings):
     usda_api_key: str | None = None
 
     # --- Server ---
-    cors_origins: List[str] = Field(default=["*"])
+    # Local Expo dev origins by default. "*" is dev-only and MUST NOT be combined
+    # with allow_credentials=True (main.py downgrades credentials when "*" is present).
+    cors_origins: List[str] = Field(
+        default=["http://localhost:8081", "http://localhost:19006"]
+    )
     photo_max_bytes: int = 5 * 1024 * 1024  # 5 MB
 
 

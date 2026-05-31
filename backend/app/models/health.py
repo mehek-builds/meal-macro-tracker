@@ -6,10 +6,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel
+from app.models.base import CamelModel
 
 
-class BodyMeasurement(BaseModel):
+class BodyMeasurement(CamelModel):
     id: Optional[str] = None
     date: str  # YYYY-MM-DD
     upper_arm_cm: Optional[float] = None
@@ -20,7 +20,7 @@ class BodyMeasurement(BaseModel):
     notes: Optional[str] = None
 
 
-class BloodworkResult(BaseModel):
+class BloodworkResult(CamelModel):
     id: Optional[str] = None
     date: str  # YYYY-MM-DD
     marker_name: str       # e.g. "Vitamin D (25-OH)", "Ferritin"
@@ -33,7 +33,7 @@ class BloodworkResult(BaseModel):
     notes: Optional[str] = None
 
 
-class CycleState(BaseModel):
+class CycleState(CamelModel):
     cycle_day: int
     phase: str  # follicular | luteal | unknown
     last_period_start: Optional[str] = None  # ISO date string

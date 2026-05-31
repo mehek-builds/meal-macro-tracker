@@ -6,14 +6,16 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, computed_field
+from pydantic import computed_field
+
+from app.models.base import CamelModel
 
 
-class WaterEntry(BaseModel):
+class WaterEntry(CamelModel):
     id: Optional[str] = None
     date: str  # YYYY-MM-DD
     oz: float
-    logged_at: str  # ISO timestamp
+    logged_at: str  # ISO timestamp -> camel loggedAt on the wire
 
     @computed_field  # type: ignore[misc]
     @property
@@ -21,7 +23,7 @@ class WaterEntry(BaseModel):
         return round(self.oz * 29.5735, 1)
 
 
-class WaterSummary(BaseModel):
+class WaterSummary(CamelModel):
     date: str
     entries: list[WaterEntry]
     total_oz: float
@@ -31,7 +33,7 @@ class WaterSummary(BaseModel):
     percent_complete: float  # 0-100
 
 
-class WaterGoal(BaseModel):
+class WaterGoal(CamelModel):
     rest_day_liters: float = 2.5
     training_day_liters: float = 3.0
     per_hour_training_bonus: float = 0.5

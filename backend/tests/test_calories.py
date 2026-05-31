@@ -133,17 +133,33 @@ class TestApplyLuteal:
 
 
 class TestNeedsRecalc:
-    def test_no_recalc_same_band(self):
-        # 42 and 44.9 are both in the 42//3=14 band
-        assert needs_recalc(42.0, 44.9) is False
+    """
+    PRD Section 2 intent: recalc fires when weight has gained >= 3 kg SINCE the
+    last recalc, measured continuously from the last recalc weight (not a grid).
+    """
 
-    def test_recalc_crosses_band(self):
-        # 42 -> band 14; 45 -> band 15
+    def test_one_kg_gain_crossing_grid_line_is_false(self):
+        # 44 -> 45 is only a 1 kg gain even though it crosses the //3 grid line.
+        assert needs_recalc(44.0, 45.0) is False
+
+    def test_full_three_kg_gain_is_true(self):
+        # 42 -> 45 is a full 3 kg gain.
         assert needs_recalc(42.0, 45.0) is True
 
-    def test_recalc_two_bands(self):
-        # 42 -> 14; 48 -> 16
+    def test_two_point_nine_kg_gain_is_false(self):
+        # 42 -> 44.9 is 2.9 kg, just under the threshold.
+        assert needs_recalc(42.0, 44.9) is False
+
+    def test_exactly_three_kg_is_true(self):
+        # Exactly 3.0 kg gained should fire.
+        assert needs_recalc(42.0, 45.0) is True
+
+    def test_recalc_large_gain(self):
+        # 42 -> 48 is 6 kg, well over threshold.
         assert needs_recalc(42.0, 48.0) is True
+
+    def test_no_recalc_when_weight_unchanged(self):
+        assert needs_recalc(42.0, 42.0) is False
 
     def test_custom_step(self):
         assert needs_recalc(10.0, 14.9, step=5.0) is False

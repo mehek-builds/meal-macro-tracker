@@ -69,32 +69,33 @@ class TestGetWaterDay:
         _post_water(16.0)
         _post_water(8.0)
         summary = client.get(f"/water/day/{WATER_DATE}").json()
-        assert summary["total_oz"] == 24.0
+        # Response is camelCase (CamelModel).
+        assert summary["totalOz"] == 24.0
 
     def test_get_day_remaining_oz_decreases_with_entries(self):
         summary_before = client.get(f"/water/day/{WATER_DATE}").json()
         _post_water(16.0)
         summary_after = client.get(f"/water/day/{WATER_DATE}").json()
-        assert summary_after["remaining_oz"] < summary_before["remaining_oz"]
+        assert summary_after["remainingOz"] < summary_before["remainingOz"]
 
     def test_get_day_has_goal_oz_field(self):
         summary = client.get(f"/water/day/{WATER_DATE}").json()
-        assert "goal_oz" in summary
-        assert summary["goal_oz"] > 0
+        assert "goalOz" in summary
+        assert summary["goalOz"] > 0
 
     def test_get_day_percent_complete_range(self):
         summary = client.get(f"/water/day/{WATER_DATE}").json()
-        assert 0.0 <= summary["percent_complete"] <= 100.0
+        assert 0.0 <= summary["percentComplete"] <= 100.0
 
     def test_get_day_empty_returns_zero_total(self):
         summary = client.get(f"/water/day/{WATER_DATE}").json()
-        assert summary["total_oz"] == 0.0
+        assert summary["totalOz"] == 0.0
         assert summary["entries"] == []
 
     def test_get_day_different_date_not_included(self):
         _post_water(16.0, date="2026-06-02")
         summary = client.get(f"/water/day/{WATER_DATE}").json()
-        assert summary["total_oz"] == 0.0
+        assert summary["totalOz"] == 0.0
 
 
 class TestDeleteWaterEntry:

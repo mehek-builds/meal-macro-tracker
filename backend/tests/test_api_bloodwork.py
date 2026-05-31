@@ -48,7 +48,8 @@ class TestCreateBloodworkEntry:
 
     def test_create_returns_correct_fields(self):
         data = _post_bloodwork(BASE_PAYLOAD)
-        assert data["marker_name"] == "Vitamin D (25-OH)"
+        # Response is camelCase (CamelModel).
+        assert data["markerName"] == "Vitamin D (25-OH)"
         assert data["value"] == 29.2
         assert data["status"] == "low"
 
@@ -90,7 +91,7 @@ class TestGetBloodworkHistory:
         })
         response = client.get("/bloodwork/history", params={"marker": "Ferritin"})
         data = response.json()
-        assert all(r["marker_name"] == "Ferritin" for r in data)
+        assert all(r["markerName"] == "Ferritin" for r in data)
         assert len(data) == 1
 
     def test_history_filter_no_match_returns_empty(self):

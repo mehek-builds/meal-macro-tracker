@@ -97,12 +97,11 @@ def needs_recalc(
     step: float = 3.0,
 ) -> bool:
     """
-    Return True when the 7-day average weight has crossed a 3-kg upward threshold
-    since the last recalculation (PRD Section 2, "Auto-Recalculation at Every 3 kg Gained").
+    Return True when the 7-day average weight has gained at least `step` kg
+    SINCE the last recalculation (PRD Section 2, "Auto-Recalculation at Every 3 kg Gained").
 
-    Uses integer division on the step grid so the check is symmetric and threshold-based
-    rather than continuous.
+    PRD intent is "3 kg gained since last recalc", measured continuously from the
+    last recalc weight — not a fixed grid. A 1 kg gain that happens to cross a grid
+    line must NOT fire, and a 2.9 kg gain must NOT fire, but a full 3.0 kg gain must.
     """
-    last_band = int(last_recalc_weight_kg // step)
-    current_band = int(current_7day_avg_kg // step)
-    return current_band > last_band
+    return (current_7day_avg_kg - last_recalc_weight_kg) >= step

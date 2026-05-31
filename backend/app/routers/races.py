@@ -23,7 +23,7 @@ RACE_WEEK_DAYS = 7
 @router.post("/entry", response_model=Race, status_code=201)
 def create_race(race: Race) -> Race:
     """Add a race to the calendar."""
-    saved = store.insert(COLLECTION, race.model_dump())
+    saved = store.insert(COLLECTION, race.model_dump(mode="json"))
     return Race(**saved)
 
 

@@ -10,9 +10,9 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 import app.store as store
+from app.models.base import CamelModel
 from app.models.health import CycleState
 from app.services.cycle import compute_cycle_state
 
@@ -21,8 +21,8 @@ router = APIRouter(prefix="/cycle", tags=["cycle"])
 COLLECTION = "cycle_starts"
 
 
-class ManualCycleRequest(BaseModel):
-    period_starts: list[str]  # list of YYYY-MM-DD strings
+class ManualCycleRequest(CamelModel):
+    period_starts: list[str]  # list of YYYY-MM-DD strings (camel periodStarts on wire)
 
 
 def _load_period_starts() -> list[date]:

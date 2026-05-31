@@ -6,10 +6,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel
+from app.models.base import CamelModel
 
 
-class Supplement(BaseModel):
+class Supplement(CamelModel):
     id: Optional[str] = None
     name: str
     dose_display: str  # e.g. "10,000 IU", "60mg"
@@ -20,7 +20,7 @@ class Supplement(BaseModel):
     active: bool = True
 
 
-class SupplementEntry(BaseModel):
+class SupplementEntry(CamelModel):
     id: Optional[str] = None
     supplement_id: str
     supplement_name: str
@@ -29,7 +29,7 @@ class SupplementEntry(BaseModel):
     notes: Optional[str] = None
 
 
-class SupplementStatus(BaseModel):
+class SupplementStatus(CamelModel):
     id: str
     name: str
     dose: str

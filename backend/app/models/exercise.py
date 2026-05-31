@@ -6,10 +6,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel
+from app.models.base import CamelModel
 
 
-class WorkoutEntry(BaseModel):
+class WorkoutEntry(CamelModel):
     id: Optional[str] = None
     date: str  # YYYY-MM-DD
     type: str  # Running | Cycling | Weight Training | HIIT | Swimming | Yoga | Walking | Other
@@ -20,10 +20,11 @@ class WorkoutEntry(BaseModel):
     notes: str = ""
 
 
-class ExerciseSummary(BaseModel):
+class ExerciseSummary(CamelModel):
     date: str
     total_active_calories: int
     total_duration_minutes: int
     workouts: list[WorkoutEntry]
-    # Net calorie calculation result (PRD Section 9.7)
+    # Net calorie calculation result (PRD Section 9.7). This is a raw service dict
+    # whose internal keys (snake_case) are NOT alias-transformed by pydantic.
     net_calorie_result: Optional[dict] = None

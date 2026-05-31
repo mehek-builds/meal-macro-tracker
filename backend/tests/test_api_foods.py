@@ -43,9 +43,10 @@ class TestCreateCustomFood:
 
     def test_create_returns_correct_fields(self):
         data = _post_custom_food()
+        # Response is camelCase via pydantic to_camel; note "100g" -> "100G".
         assert data["name"] == "Homemade Dal"
-        assert data["calories_per_100g"] == 120.0
-        assert data["protein_per_100g"] == 7.5
+        assert data["caloriesPer100G"] == 120.0
+        assert data["proteinPer100G"] == 7.5
 
     def test_create_assigns_id(self):
         data = _post_custom_food()

@@ -52,6 +52,23 @@ class TestCreateRace:
         data = _post_race()
         assert data["id"] is not None
 
+    def test_create_accepts_widened_status_values(self):
+        """PRD Section 15.4 statuses (lottery_entered, ballot, planned) must validate."""
+        for status in ("planned", "lottery_entered", "ballot", "registered", "completed"):
+            resp = client.post("/races/entry", json={
+                "name": f"Race {status}",
+                "date": "2027-05-09",
+                "status": status,
+            })
+            assert resp.status_code == 201
+            assert resp.json()["status"] == status
+
+    def test_create_rejects_invalid_status(self):
+        resp = client.post("/races/entry", json={
+            "name": "Bad Race", "date": "2027-05-09", "status": "not_a_status",
+        })
+        assert resp.status_code == 422
+
 
 class TestGetRaces:
     def test_get_races_returns_200(self):
@@ -80,17 +97,17 @@ class TestGetRaces:
         response = client.get("/races")
         for r in response.json():
             if r["id"] == entry["id"]:
-                assert r["race_week_active"] is False
+                assert r["raceWeekActive"] is False
                 break
 
     def test_race_week_active_true_when_within_7_days(self):
-        """A race 3 days from now should have race_week_active = True."""
+        """A race 3 days from now should have raceWeekActive = True."""
         soon = (date.today() + timedelta(days=3)).isoformat()
         entry = _post_race({"name": "Imminent Race", "date": soon})
         response = client.get("/races")
         for r in response.json():
             if r["id"] == entry["id"]:
-                assert r["race_week_active"] is True
+                assert r["raceWeekActive"] is True
                 break
 
     def test_race_week_active_false_for_past_race(self):
@@ -100,5 +117,5 @@ class TestGetRaces:
         response = client.get("/races")
         for r in response.json():
             if r["id"] == entry["id"]:
-                assert r["race_week_active"] is False
+                assert r["raceWeekActive"] is False
                 break

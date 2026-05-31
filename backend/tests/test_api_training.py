@@ -44,14 +44,14 @@ class TestSetTrainingMode:
         _bootstrap_profile()
         response = client.put("/training/mode", json={"mode": "marathon"})
         data = response.json()
-        assert data["training_mode"] == "marathon"
+        assert data["trainingMode"] == "marathon"
 
     def test_set_mode_all_valid_modes(self):
         _bootstrap_profile()
         for mode in ("muscle_gain", "marathon", "both"):
             response = client.put("/training/mode", json={"mode": mode})
             assert response.status_code == 200
-            assert response.json()["training_mode"] == mode
+            assert response.json()["trainingMode"] == mode
 
     def test_set_mode_invalid_returns_422(self):
         _bootstrap_profile()

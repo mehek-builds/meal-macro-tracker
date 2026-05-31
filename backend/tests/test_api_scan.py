@@ -19,13 +19,14 @@ from app.main import app
 
 client = TestClient(app)
 
+# Wire contract is camelCase (CamelModel alias generator).
 REQUIRED_ITEM_FIELDS = {
-    "food_name", "weight_grams", "calories",
-    "protein_g", "carbs_g", "fat_g", "confidence",
+    "foodName", "weightGrams", "calories",
+    "proteinG", "carbsG", "fatG", "confidence",
 }
 
 REQUIRED_RESULT_FIELDS = {
-    "items", "overall_confidence", "scan_notes", "stub",
+    "items", "overallConfidence", "scanNotes", "stub",
 }
 
 
@@ -73,8 +74,23 @@ class TestScanPhoto:
 
     def test_scan_photo_overall_confidence_in_range(self):
         response = client.post("/scan/photo", json={"image_b64": "aGVsbG8="})
-        confidence = response.json()["overall_confidence"]
+        confidence = response.json()["overallConfidence"]
         assert 0.0 <= confidence <= 1.0
+
+    def test_scan_photo_oversized_payload_returns_413(self):
+        """PRD Section 16 scan step 2: reject images >= 5MB before processing."""
+        from app.config import settings
+        # Build a base64 string whose approx decoded size exceeds the limit.
+        # approx_decoded_bytes = len(b64) * 3 / 4, so need len > max_bytes * 4 / 3.
+        oversized_len = int(settings.photo_max_bytes * 4 / 3) + 1000
+        big_b64 = "A" * oversized_len
+        response = client.post("/scan/photo", json={"image_b64": big_b64})
+        assert response.status_code == 413
+
+    def test_scan_photo_at_limit_payload_accepted(self):
+        """A small payload well under the limit is processed normally (200)."""
+        response = client.post("/scan/photo", json={"image_b64": "aGVsbG8="})
+        assert response.status_code == 200
 
 
 class TestScanBarcode:
@@ -104,7 +120,7 @@ class TestScanBarcode:
 
     def test_scan_barcode_scan_notes_mentions_stub(self):
         response = client.post("/scan/barcode", json={"barcode": "012345678901"})
-        notes = response.json()["scan_notes"].lower()
+        notes = response.json()["scanNotes"].lower()
         assert "stub" in notes
 
     def test_scan_barcode_missing_barcode_returns_422(self):
@@ -147,5 +163,5 @@ class TestScanLabel:
 
     def test_scan_label_scan_notes_mentions_stub(self):
         response = client.post("/scan/label", json={"image_b64": "aGVsbG8="})
-        notes = response.json()["scan_notes"].lower()
+        notes = response.json()["scanNotes"].lower()
         assert "stub" in notes

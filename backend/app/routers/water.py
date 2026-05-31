@@ -12,9 +12,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
 import app.store as store
+from app.models.base import CamelModel
 from app.models.water import WaterEntry, WaterSummary
 from app.services.water_goal import DEFAULT_WATER_GOAL, get_today_water_goal_liters, liters_to_oz
 
@@ -26,10 +26,10 @@ EXERCISE_COLLECTION = "exercise"
 SINGLETON_ID = "profile"
 
 
-class WaterEntryRequest(BaseModel):
+class WaterEntryRequest(CamelModel):
     oz: float
-    date: str  # YYYY-MM-DD
-    logged_at: str = ""  # ISO; defaults to now
+    date: str  # YYYY-MM-DD (required)
+    logged_at: str = ""  # ISO; camel loggedAt on wire; defaults to now
 
 
 @router.post("/entry", response_model=WaterEntry, status_code=201)

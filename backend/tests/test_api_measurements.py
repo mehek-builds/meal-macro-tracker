@@ -44,9 +44,10 @@ class TestCreateMeasurement:
 
     def test_create_returns_correct_fields(self):
         data = _post_measurement()
+        # Response is camelCase (CamelModel).
         assert data["date"] == "2026-06-01"
-        assert data["upper_arm_cm"] == 26.5
-        assert data["waist_cm"] == 65.0
+        assert data["upperArmCm"] == 26.5
+        assert data["waistCm"] == 65.0
 
     def test_create_assigns_id(self):
         data = _post_measurement()
@@ -62,9 +63,9 @@ class TestCreateMeasurement:
         response = client.post("/measurements/entry", json=payload)
         assert response.status_code == 201
         data = response.json()
-        assert data["chest_cm"] is None
-        assert data["hips_cm"] is None
-        assert data["thigh_cm"] is None
+        assert data["chestCm"] is None
+        assert data["hipsCm"] is None
+        assert data["thighCm"] is None
 
 
 class TestGetMeasurementHistory:

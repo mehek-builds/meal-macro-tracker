@@ -69,7 +69,8 @@ async def route_food_scan(
     Currently returns a canned stub result rather than calling any model.
     Replace _call_* implementations above and remove the stub block below.
     """
-    # --- STUB: return representative data without a real model call ---
+    # --- STUB model step: representative data without a real model call ---
+    # (Real impl replaces this block with the SKELETON routing below.)
     stub_item = NutritionItem(
         food_name="Sample Food (stub)",
         portion_description="100g estimated",
@@ -81,12 +82,30 @@ async def route_food_scan(
         confidence=0.0,
         hidden_calories_warning=None,
     )
-    return ScanResult(
+    result = ScanResult(
         items=[stub_item],
         overall_confidence=0.0,
         scan_notes="stub - no model call was made (Section 7.4 TODO)",
         stub=True,
     )
+
+    # --- RAG override (PRD Section 7.6 + Section 20 risk) ---
+    # The DB lookup OVERWRITES the model's calorie/macro estimates with verified
+    # values before returning. This ordering (DB overrides model) is what prevents
+    # the LLM from hallucinating numbers. The loop is structurally present even while
+    # fuzzy_lookup is a stub — the contract (DB wins over model) is what matters here.
+    # Local import keeps the optional data deps out of module import.
+    from app.services.rag import fuzzy_lookup
+
+    for item in result.items:
+        # TODO(7.6): swap stub fuzzy_lookup for real pgvector USDA/IFCT search
+        looked_up = fuzzy_lookup(item.food_name, item.weight_grams)
+        item.calories = looked_up["calories"]
+        item.protein_g = looked_up["protein_g"]
+        item.carbs_g = looked_up["carbs_g"]
+        item.fat_g = looked_up["fat_g"]
+
+    return result
 
     # --- SKELETON (unreachable until stubs are wired) ---
     # complexity = await _classify_complexity(image_b64)
@@ -101,4 +120,5 @@ async def route_food_scan(
     # from app.config import settings
     # if result.overall_confidence < settings.confidence_threshold:
     #     result = await _run_second_opinion(image_b64, depth_data, result)
+    # # Then the same RAG-override loop above runs before returning.
     # return result

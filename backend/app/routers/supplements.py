@@ -11,9 +11,9 @@ from __future__ import annotations
 from datetime import datetime, date as date_type, timezone
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
 import app.store as store
+from app.models.base import CamelModel
 from app.models.supplement import Supplement, SupplementEntry, SupplementStatus
 from app.services.supplements import PROTOCOL, check_conflicts
 
@@ -36,20 +36,20 @@ def _ensure_defaults() -> None:
             })
 
 
-class LogSupplementRequest(BaseModel):
-    supplement_id: str
-    taken_at: str = ""  # ISO; defaults to now
+class LogSupplementRequest(CamelModel):
+    supplement_id: str  # camel supplementId on wire
+    taken_at: str = ""  # ISO; camel takenAt; defaults to now
 
 
-class RetestRequest(BaseModel):
-    retest_date: str  # YYYY-MM-DD
+class RetestRequest(CamelModel):
+    retest_date: str  # YYYY-MM-DD; camel retestDate on wire
     notes: str = ""
 
 
-class LogSupplementResponse(BaseModel):
+class LogSupplementResponse(CamelModel):
     entry: SupplementEntry
     conflicts: list[str]
-    next_safe_time: str | None = None
+    next_safe_time: str | None = None  # camel nextSafeTime on wire
 
 
 @router.post("/log", response_model=LogSupplementResponse, status_code=201)
@@ -138,4 +138,4 @@ def update_retest(supplement_id: str, payload: RetestRequest) -> dict:
         supplement_id,
         {"retest_date": payload.retest_date, "retest_notes": payload.notes},
     )
-    return {"id": supplement_id, "retest_date": payload.retest_date, "notes": payload.notes}
+    return {"id": supplement_id, "retestDate": payload.retest_date, "notes": payload.notes}

@@ -29,19 +29,20 @@ class TestGetCycleState:
     def test_get_state_has_required_fields(self):
         response = client.get("/cycle/state")
         data = response.json()
-        assert "cycle_day" in data
+        # Response is camelCase (CamelModel).
+        assert "cycleDay" in data
         assert "phase" in data
-        assert "estimated_cycle_length" in data
-        assert "near_ovulation" in data
-        assert "luteal_calorie_bonus" in data
-        assert "luteal_protein_bonus" in data
+        assert "estimatedCycleLength" in data
+        assert "nearOvulation" in data
+        assert "lutealCalorieBonus" in data
+        assert "lutealProteinBonus" in data
 
     def test_get_state_no_data_returns_unknown_phase(self):
         response = client.get("/cycle/state")
         data = response.json()
         # Without any stored period starts, phase should be 'unknown'
         assert data["phase"] == "unknown"
-        assert data["cycle_day"] == 0
+        assert data["cycleDay"] == 0
 
 
 class TestManualCycle:
@@ -55,16 +56,16 @@ class TestManualCycle:
         period_start = (date.today() - timedelta(days=10)).isoformat()
         response = client.post("/cycle/manual", json={"period_starts": [period_start]})
         data = response.json()
-        assert "cycle_day" in data
+        assert "cycleDay" in data
         assert "phase" in data
 
     def test_manual_cycle_day_matches_days_since_start(self):
-        """cycle_day = today - period_start + 1 (1-indexed)."""
+        """cycleDay = today - period_start + 1 (1-indexed)."""
         period_start = (date.today() - timedelta(days=9)).isoformat()
         response = client.post("/cycle/manual", json={"period_starts": [period_start]})
         data = response.json()
-        # 9 days ago → cycle_day = 10
-        assert data["cycle_day"] == 10
+        # 9 days ago → cycleDay = 10
+        assert data["cycleDay"] == 10
 
     def test_manual_cycle_luteal_phase_detected(self):
         """Day 15 is past estimated ovulation (day 14 for 28-day cycle) → luteal."""
@@ -72,7 +73,7 @@ class TestManualCycle:
         response = client.post("/cycle/manual", json={"period_starts": [period_start]})
         data = response.json()
         assert data["phase"] == "luteal"
-        assert data["luteal_calorie_bonus"] > 0
+        assert data["lutealCalorieBonus"] > 0
 
     def test_manual_cycle_follicular_phase_detected(self):
         """Day 5 is before estimated ovulation → follicular."""
@@ -90,8 +91,8 @@ class TestManualCycle:
         response = client.post("/cycle/manual", json={"period_starts": [new_start]})
 
         data = response.json()
-        # cycle_day should reflect 5+1=6, not 20+1=21
-        assert data["cycle_day"] == 6
+        # cycleDay should reflect 5+1=6, not 20+1=21
+        assert data["cycleDay"] == 6
 
     def test_manual_cycle_updates_state_on_get(self):
         period_start = (date.today() - timedelta(days=10)).isoformat()
@@ -100,4 +101,4 @@ class TestManualCycle:
         response = client.get("/cycle/state")
         data = response.json()
         assert data["phase"] != "unknown"
-        assert data["cycle_day"] > 0
+        assert data["cycleDay"] > 0

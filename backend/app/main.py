@@ -33,10 +33,14 @@ app = FastAPI(
 )
 
 # CORS
+# The wildcard "*" origin is invalid alongside allow_credentials=True (browsers
+# reject it). When "*" is configured (dev only), disable credentials so the
+# combination stays valid and not over-permissive.
+_allow_credentials = "*" not in settings.cors_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

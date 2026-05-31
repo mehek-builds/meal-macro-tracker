@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from app.config import settings
 from app.models.nutrition import (
     BarcodeRequest,
     LabelRequest,
@@ -21,6 +22,11 @@ from app.services.vision_router import route_food_scan
 router = APIRouter(prefix="/scan", tags=["scan"])
 
 
+def _approx_decoded_bytes(b64: str) -> int:
+    """Approximate the decoded byte size of a base64 string (PRD Section 16 step 2)."""
+    return int(len(b64) * 3 / 4)
+
+
 @router.post("/photo", response_model=ScanResult)
 async def scan_photo(payload: ScanRequest) -> ScanResult:
     """
@@ -28,6 +34,15 @@ async def scan_photo(payload: ScanRequest) -> ScanResult:
     Returns a nutrition breakdown for each identified food item.
     Delegates to the multi-model vision router (PRD Section 7.4 — currently stub).
     """
+    # PRD Section 16 scan step 2: reject files >= 5MB before doing any work.
+    if _approx_decoded_bytes(payload.image_b64) > settings.photo_max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Image exceeds maximum size of {settings.photo_max_bytes} bytes "
+                f"(PRD Section 16: file size < 5MB)."
+            ),
+        )
     return await route_food_scan(payload.image_b64, payload.depth_data)
 
 

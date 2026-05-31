@@ -48,8 +48,9 @@ class TestCreateExerciseEntry:
 
     def test_create_returns_correct_fields(self):
         data = _post_workout()
+        # Response is camelCase (CamelModel).
         assert data["type"] == "Running"
-        assert data["duration_minutes"] == 30
+        assert data["durationMinutes"] == 30
         assert data["date"] == EXERCISE_DATE
 
     def test_create_assigns_id(self):
@@ -68,9 +69,9 @@ class TestCreateExerciseEntry:
         response = client.post("/exercise/entry", json=payload)
         assert response.status_code == 201
         data = response.json()
-        # Should have a non-None calories_burned (estimated via MET)
-        assert data["calories_burned"] is not None
-        assert data["calories_burned"] > 0
+        # Should have a non-None caloriesBurned (estimated via MET)
+        assert data["caloriesBurned"] is not None
+        assert data["caloriesBurned"] > 0
 
 
 class TestGetExerciseDay:
@@ -105,10 +106,11 @@ class TestGetExerciseSummary:
     def test_summary_has_required_fields(self):
         response = client.get(f"/exercise/summary/{EXERCISE_DATE}")
         data = response.json()
-        assert "total_active_calories" in data
-        assert "total_duration_minutes" in data
+        # Response is camelCase (CamelModel).
+        assert "totalActiveCalories" in data
+        assert "totalDurationMinutes" in data
         assert "workouts" in data
-        assert "net_calorie_result" in data
+        assert "netCalorieResult" in data
 
     def test_summary_totals_calories_correctly(self):
         _post_workout({"date": EXERCISE_DATE, "type": "Running",
@@ -117,20 +119,21 @@ class TestGetExerciseSummary:
                        "duration_minutes": 45, "calories_burned": 250, "source": "manual"})
         response = client.get(f"/exercise/summary/{EXERCISE_DATE}")
         data = response.json()
-        assert data["total_active_calories"] == 550
-        assert data["total_duration_minutes"] == 75
+        assert data["totalActiveCalories"] == 550
+        assert data["totalDurationMinutes"] == 75
 
     def test_summary_empty_day_returns_zero_calories(self):
         response = client.get(f"/exercise/summary/{EXERCISE_DATE}")
         data = response.json()
-        assert data["total_active_calories"] == 0
-        assert data["total_duration_minutes"] == 0
+        assert data["totalActiveCalories"] == 0
+        assert data["totalDurationMinutes"] == 0
 
     def test_summary_contains_net_calorie_result(self):
         response = client.get(f"/exercise/summary/{EXERCISE_DATE}")
         data = response.json()
-        assert data["net_calorie_result"] is not None
-        assert isinstance(data["net_calorie_result"], dict)
+        # netCalorieResult is a raw service dict; its inner keys stay snake_case.
+        assert data["netCalorieResult"] is not None
+        assert isinstance(data["netCalorieResult"], dict)
 
 
 class TestDeleteExerciseEntry:

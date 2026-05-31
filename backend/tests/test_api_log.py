@@ -22,16 +22,21 @@ def reset_store():
     store.clear_all()
 
 
+# Wire contract is camelCase with a nested `item` (NutritionItem).
 ENTRY_PAYLOAD = {
     "date": "2026-06-01",
     "meal": "breakfast",
-    "food_name": "Oatmeal",
-    "weight_grams": 100.0,
-    "calories": 350.0,
-    "protein_g": 12.0,
-    "carbs_g": 60.0,
-    "fat_g": 7.0,
-    "source": "manual",
+    "source": "photo_scan",
+    "item": {
+        "foodName": "Oatmeal",
+        "portionDescription": "1 bowl",
+        "weightGrams": 100.0,
+        "calories": 350.0,
+        "proteinG": 12.0,
+        "carbsG": 60.0,
+        "fatG": 7.0,
+        "confidence": 0.9,
+    },
 }
 
 
@@ -43,9 +48,10 @@ class TestCreateLogEntry:
     def test_create_entry_returns_body(self):
         response = client.post("/log/entry", json=ENTRY_PAYLOAD)
         data = response.json()
-        assert data["food_name"] == "Oatmeal"
-        assert data["calories"] == 350.0
+        assert data["item"]["foodName"] == "Oatmeal"
+        assert data["item"]["calories"] == 350.0
         assert data["date"] == "2026-06-01"
+        assert data["source"] == "photo_scan"
 
     def test_create_entry_assigns_id(self):
         response = client.post("/log/entry", json=ENTRY_PAYLOAD)
@@ -71,7 +77,11 @@ class TestGetLogDay:
         assert response.json() == []
 
     def test_get_day_returns_multiple_entries(self):
-        payload2 = {**ENTRY_PAYLOAD, "meal": "lunch", "food_name": "Chicken"}
+        payload2 = {
+            **ENTRY_PAYLOAD,
+            "meal": "lunch",
+            "item": {**ENTRY_PAYLOAD["item"], "foodName": "Chicken"},
+        }
         client.post("/log/entry", json=ENTRY_PAYLOAD)
         client.post("/log/entry", json=payload2)
 
@@ -84,7 +94,11 @@ class TestUpdateLogEntry:
         post_resp = client.post("/log/entry", json=ENTRY_PAYLOAD)
         entry_id = post_resp.json()["id"]
 
-        updated_payload = {**ENTRY_PAYLOAD, "id": entry_id, "food_name": "Porridge", "calories": 400.0}
+        updated_payload = {
+            **ENTRY_PAYLOAD,
+            "id": entry_id,
+            "item": {**ENTRY_PAYLOAD["item"], "foodName": "Porridge", "calories": 400.0},
+        }
         put_resp = client.put(f"/log/entry/{entry_id}", json=updated_payload)
         assert put_resp.status_code == 200
 
@@ -92,14 +106,21 @@ class TestUpdateLogEntry:
         post_resp = client.post("/log/entry", json=ENTRY_PAYLOAD)
         entry_id = post_resp.json()["id"]
 
-        updated_payload = {**ENTRY_PAYLOAD, "id": entry_id, "food_name": "Porridge", "calories": 400.0}
+        updated_payload = {
+            **ENTRY_PAYLOAD,
+            "id": entry_id,
+            "item": {**ENTRY_PAYLOAD["item"], "foodName": "Porridge", "calories": 400.0},
+        }
         put_resp = client.put(f"/log/entry/{entry_id}", json=updated_payload)
         data = put_resp.json()
-        assert data["food_name"] == "Porridge"
-        assert data["calories"] == 400.0
+        assert data["item"]["foodName"] == "Porridge"
+        assert data["item"]["calories"] == 400.0
 
     def test_update_nonexistent_entry_returns_404(self):
-        updated_payload = {**ENTRY_PAYLOAD, "food_name": "Ghost Food"}
+        updated_payload = {
+            **ENTRY_PAYLOAD,
+            "item": {**ENTRY_PAYLOAD["item"], "foodName": "Ghost Food"},
+        }
         response = client.put("/log/entry/nonexistent-id", json=updated_payload)
         assert response.status_code == 404
 

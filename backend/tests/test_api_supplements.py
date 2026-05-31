@@ -54,8 +54,9 @@ class TestGetTodaySupplements:
     def test_today_initially_none_taken(self):
         response = client.get("/supplements/today")
         for item in response.json():
-            assert item["taken_today"] is False
-            assert item["taken_at"] is None
+            # Response is camelCase (CamelModel).
+            assert item["takenToday"] is False
+            assert item["takenAt"] is None
 
 
 class TestLogSupplement:
@@ -111,7 +112,7 @@ class TestLogSupplement:
         today_resp = client.get("/supplements/today")
         for item in today_resp.json():
             if item["id"] == d3_id:
-                assert item["taken_today"] is True
+                assert item["takenToday"] is True
                 break
 
 
@@ -162,9 +163,9 @@ class TestSupplementConflict:
         })
 
         data = iron_resp.json()
-        # next_safe_time should be D3 time + 2h = 15:30
-        assert data["next_safe_time"] is not None
-        safe_dt = datetime.fromisoformat(data["next_safe_time"])
+        # nextSafeTime should be D3 time + 2h = 15:30
+        assert data["nextSafeTime"] is not None
+        safe_dt = datetime.fromisoformat(data["nextSafeTime"])
         expected_safe = datetime.fromisoformat("2026-06-01T13:30:00+00:00") + timedelta(hours=2)
         assert safe_dt == expected_safe
 
@@ -206,7 +207,7 @@ class TestUpdateRetestDate:
             "notes": "Check if D levels normalized",
         })
         data = response.json()
-        assert data["retest_date"] == "2026-07-15"
+        assert data["retestDate"] == "2026-07-15"
         assert data["id"] == d3_id
 
     def test_retest_update_nonexistent_returns_404(self):

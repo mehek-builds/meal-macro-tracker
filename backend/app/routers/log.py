@@ -19,8 +19,11 @@ COLLECTION = "food_log"
 
 @router.post("/entry", response_model=FoodLogEntry, status_code=201)
 def create_entry(entry: FoodLogEntry) -> FoodLogEntry:
-    """Save a food log entry (PRD Section 16: POST /log/entry)."""
-    saved = store.insert(COLLECTION, entry.model_dump())
+    """
+    Save a food log entry (PRD Section 16: POST /log/entry).
+    Accepts {date, meal, source, item} where item is a nested NutritionItem.
+    """
+    saved = store.insert(COLLECTION, entry.model_dump(mode="json"))
     return FoodLogEntry(**saved)
 
 
@@ -33,8 +36,8 @@ def get_day(date: str) -> list[FoodLogEntry]:
 
 @router.put("/entry/{entry_id}", response_model=FoodLogEntry)
 def update_entry(entry_id: str, entry: FoodLogEntry) -> FoodLogEntry:
-    """Edit a food log entry."""
-    updated = store.update(COLLECTION, entry_id, entry.model_dump(exclude_none=True))
+    """Edit a food log entry (full replacement of {date, meal, source, item})."""
+    updated = store.update(COLLECTION, entry_id, entry.model_dump(mode="json"))
     if updated is None:
         raise HTTPException(status_code=404, detail="Entry not found")
     return FoodLogEntry(**updated)

@@ -9,18 +9,23 @@ GET  /user/stats
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
 import app.store as store
+from app.models.base import CamelModel
 from app.models.user import NetCalorieMode, Targets, UserProfile, UserStats
 from app.services.calories import (
     ACTIVITY_FACTORS,
+    apply_luteal,
     bmr as calc_bmr,
     daily_calorie_target,
     macro_targets,
     tdee as calc_tdee,
 )
+from app.services.cycle import compute_cycle_state
+from app.services.water_goal import DEFAULT_WATER_GOAL, get_today_water_goal_liters, liters_to_oz
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -28,8 +33,30 @@ COLLECTION = "user"
 SINGLETON_ID = "profile"
 
 
+def _is_luteal(profile: dict) -> bool:
+    """
+    Determine whether the user is currently in the luteal phase.
+
+    Uses the profile's last_period_start (seed value, PRD Section 6/11.5) fed
+    through compute_cycle_state. If no period start is recorded, defaults to False.
+    """
+    last_period_start = profile.get("last_period_start")
+    if not last_period_start:
+        return False
+    try:
+        start = date.fromisoformat(last_period_start)
+    except (TypeError, ValueError):
+        return False
+    state = compute_cycle_state([start], date.today())
+    return state["phase"] == "luteal"
+
+
 def _derive_targets(profile: dict) -> Targets:
-    """Compute BMR, TDEE, and macro targets from stored profile dict."""
+    """
+    Compute BMR, TDEE, macro targets, and the luteal-adjusted effective targets
+    (PRD Sections 2, 11.4). The luteal adjustment (+200 cal / +12 g protein) is
+    applied here via apply_luteal so it actually reaches the dashboard.
+    """
     bmr_val = calc_bmr(
         sex=profile["sex"],
         weight_kg=profile["weight_kg"],
@@ -41,23 +68,50 @@ def _derive_targets(profile: dict) -> Targets:
         tdee_val, profile["goal"], surplus=profile.get("calorie_surplus", 400)
     )
     macros = macro_targets(profile["weight_kg"], cal_target)
+
+    # Luteal adjustment (PRD Section 2 / 11.4): +200 cal, +12 g protein.
+    is_luteal = _is_luteal(profile)
+    effective = apply_luteal(
+        {"calories": cal_target, "protein_g": macros["protein_g"]},
+        is_luteal=is_luteal,
+    )
+    luteal_calorie_bonus = effective["calories"] - cal_target
+    luteal_protein_bonus = effective["protein_g"] - macros["protein_g"]
+
+    # Water goal: user override if set, else the rest-day base goal converted to oz.
+    if profile.get("water_goal_oz"):
+        water_goal_oz = float(profile["water_goal_oz"])
+    else:
+        rest_day_liters = get_today_water_goal_liters(0, DEFAULT_WATER_GOAL)
+        water_goal_oz = liters_to_oz(rest_day_liters)
+
     return Targets(
         bmr=round(bmr_val, 1),
         tdee=round(tdee_val, 1),
-        calorie_target=cal_target,
+        calories=cal_target,
         protein_g=macros["protein_g"],
         carbs_g=macros["carbs_g"],
         fat_g=macros["fat_g"],
+        is_luteal=is_luteal,
+        luteal_calorie_bonus=luteal_calorie_bonus,
+        luteal_protein_bonus=luteal_protein_bonus,
+        effective_calories=effective["calories"],
+        effective_protein_g=effective["protein_g"],
+        water_goal_oz=water_goal_oz,
     )
 
 
-class ProfileResponse(BaseModel):
+class ProfileResponse(CamelModel):
     profile: UserProfile
     targets: Targets
 
 
-class NetCalorieModeRequest(BaseModel):
+class NetCalorieModeRequest(CamelModel):
     mode: NetCalorieMode
+
+
+class WaterGoalRequest(CamelModel):
+    oz: float
 
 
 @router.get("/profile", response_model=ProfileResponse)
@@ -94,7 +148,7 @@ def set_net_calorie_mode(payload: NetCalorieModeRequest) -> dict:
     if existing is None:
         raise HTTPException(status_code=404, detail="Profile not set up yet")
     store.update(COLLECTION, SINGLETON_ID, {"net_calorie_mode": payload.mode.value})
-    return {"net_calorie_mode": payload.mode.value}
+    return {"netCalorieMode": payload.mode.value}
 
 
 @router.get("/stats", response_model=UserStats)
@@ -116,12 +170,13 @@ def get_stats() -> UserStats:
 
 
 @router.put("/water-goal", response_model=dict)
-def set_water_goal(oz: float) -> dict:
+def set_water_goal(payload: WaterGoalRequest) -> dict:
     """
     Update the user's manual water goal override in oz (PRD Section 10, PUT /user/water-goal).
+    Accepts a JSON body {"oz": <float>} (camel: same) rather than a query param.
     """
     existing = store.get(COLLECTION, SINGLETON_ID)
     if existing is None:
         raise HTTPException(status_code=404, detail="Profile not set up yet")
-    store.update(COLLECTION, SINGLETON_ID, {"water_goal_oz": oz})
-    return {"water_goal_oz": oz}
+    store.update(COLLECTION, SINGLETON_ID, {"water_goal_oz": payload.oz})
+    return {"waterGoalOz": payload.oz}
