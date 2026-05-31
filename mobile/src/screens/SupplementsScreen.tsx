@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import type { SupplementStatus } from '@/types';
 import { Pill } from '@/theme/icons';
-import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
+import { tokens, font, type, radius, space, shadow, withAlpha } from '@/theme/tokens';
 
 const MOCK_SUPPLEMENTS: SupplementStatus[] = [
   { id: 'vitd3', name: 'Vitamin D3', dose: '10,000 IU', takenToday: false, takenAt: null, nextSafeTime: null },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   conflictRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   conflict: { fontFamily: font.body, fontSize: 12, color: tokens.stateClose },
   doneTag: {
-    backgroundColor: 'rgba(34,197,94,0.12)',
+    backgroundColor: withAlpha(tokens.stateOnTrack, 0.12),
     borderRadius: radius.chip,
     paddingHorizontal: 12,
     minHeight: 36,

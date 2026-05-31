@@ -23,7 +23,7 @@ import {
 import { SpaceGrotesk_500Medium } from '@expo-google-fonts/space-grotesk';
 
 import { useAppStore } from '@/state/useAppStore';
-import { tokens, font, radius, shadow } from '@/theme/tokens';
+import { tokens, font, radius, shadow, withAlpha } from '@/theme/tokens';
 import { Camera, House, ClipboardList, LineChart, User } from '@/theme/icons';
 
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
@@ -193,7 +193,7 @@ export default function App(): React.ReactElement | null {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(251,247,241,0.94)',
+    backgroundColor: withAlpha(tokens.bg, 0.94),
     borderTopColor: tokens.border,
     borderTopWidth: 1,
     height: 64,

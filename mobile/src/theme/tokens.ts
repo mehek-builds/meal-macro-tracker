@@ -62,3 +62,13 @@ export const shadow = {
     shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
 } as const;
+
+// Returns a token color at the given opacity, e.g. withAlpha(tokens.bg, 0.94).
+// Keeps translucent fills sourced from tokens rather than raw rgba literals.
+export function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
