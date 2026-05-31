@@ -23,7 +23,8 @@ def _new_id() -> str:
 def insert(collection: str, data: dict[str, Any]) -> dict[str, Any]:
     """Insert a record; assigns a new UUID id if not already present."""
     record = dict(data)
-    record.setdefault("id", _new_id())
+    if not record.get("id"):
+        record["id"] = _new_id()
     _stores[collection][record["id"]] = record
     return record
 
