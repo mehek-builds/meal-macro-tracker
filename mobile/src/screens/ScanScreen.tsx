@@ -18,25 +18,25 @@ import type { NutritionItem } from '@/types';
 // Mock scan result for UI development.
 const MOCK_SCAN_RESULT: NutritionItem[] = [
   {
-    food_name: 'Brown rice, cooked',
-    portion_description: '1 cup (~180g)',
-    weight_grams: 180,
+    foodName: 'Brown rice, cooked',
+    portionDescription: '1 cup (~180g)',
+    weightGrams: 180,
     calories: 216,
-    protein_g: 5,
-    carbs_g: 45,
-    fat_g: 2,
+    proteinG: 5,
+    carbsG: 45,
+    fatG: 2,
     confidence: 0.88,
   },
   {
-    food_name: 'Chicken breast, grilled',
-    portion_description: '~120g',
-    weight_grams: 120,
+    foodName: 'Chicken breast, grilled',
+    portionDescription: '~120g',
+    weightGrams: 120,
     calories: 198,
-    protein_g: 37,
-    carbs_g: 0,
-    fat_g: 4,
+    proteinG: 37,
+    carbsG: 0,
+    fatG: 4,
     confidence: 0.91,
-    hidden_calories_warning: 'Likely cooked with ~1 tsp oil (+40 cal)',
+    hiddenCaloriesWarning: 'Likely cooked with ~1 tsp oil (+40 cal)',
   },
 ];
 
@@ -146,14 +146,14 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
               <View style={styles.resultRow}>
                 <View style={styles.resultInfo}>
                   {/* TODO(Section 7.8) - tap food name to fuzzy-search replacement */}
-                  <Text style={styles.foodName}>{item.food_name}</Text>
+                  <Text style={styles.foodName}>{item.foodName}</Text>
                   {/* TODO(Section 7.8) - tap portion to drag slider or type grams */}
-                  <Text style={styles.portion}>{item.portion_description}</Text>
-                  {item.hidden_calories_warning && (
-                    <Text style={styles.warning}>{item.hidden_calories_warning}</Text>
+                  <Text style={styles.portion}>{item.portionDescription}</Text>
+                  {item.hiddenCaloriesWarning && (
+                    <Text style={styles.warning}>{item.hiddenCaloriesWarning}</Text>
                   )}
                   <Text style={styles.macroLine}>
-                    {item.calories} cal · {item.protein_g}g P · {item.carbs_g}g C · {item.fat_g}g F
+                    {item.calories} cal · {item.proteinG}g P · {item.carbsG}g C · {item.fatG}g F
                   </Text>
                   <Text style={styles.confidence}>
                     Confidence: {Math.round(item.confidence * 100)}%

@@ -106,9 +106,9 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
 
         {/* Macro Bars - Section 5 */}
         <MacroBars
-          protein={{ consumed: proteinConsumed, target: targets.effectiveProtein }}
-          carbs={{ consumed: carbsConsumed, target: targets.carbs_g }}
-          fat={{ consumed: fatConsumed, target: targets.fat_g }}
+          protein={{ consumed: proteinConsumed, target: targets.effectiveProteinG }}
+          carbs={{ consumed: carbsConsumed, target: targets.carbsG }}
+          fat={{ consumed: fatConsumed, target: targets.fatG }}
         />
 
         {/* Micronutrient Row - Section 5 (always visible) */}

@@ -12,41 +12,41 @@ import type {
   WaterSummary,
   CycleState,
   NetCalorieMode,
-  TrainingMode,
 } from '@/types';
 
 // --------------- Mock seed data -----------------
 
 const MOCK_PROFILE: UserProfile = {
   id: 'local-user',
-  biologicalSex: 'female',
-  ageYears: 20,
+  sex: 'female',
+  age: 20,
   heightCm: 163,
   weightKg: 42,
-  goalType: 'build_muscle',
-  targetWeightKg: 57,
-  milestoneWeightKg: 45,
+  goal: 'build_muscle',
   activityLevel: 'lightly_active',
-  trainingPhase: 1,
-  trainingMode: 'muscle_gain',
-  dietaryRestrictions: [],
-  cycleFirstDayOfLastPeriod: null,
+  trainingPhase: 'phase_1',
   netCalorieMode: 'fixed',
-  waterGoalRestDayOz: 85,       // ~2.5 L
-  waterGoalTrainingDayOz: 101,  // ~3.0 L
+  calorieSurplus: 400,
+  waterGoalOz: null,
+  dietaryRestrictions: [],
+  allergies: [],
+  lastPeriodStart: null,
 };
 
 /** Mifflin-St Jeor BMR + surplus for 42 kg lightly-active female (Section 2). */
 const MOCK_TARGETS: Targets = {
-  calories: 1900,
-  protein_g: 122,
-  carbs_g: 240,
-  fat_g: 60,
-  lutealCalorieAdjustment: 0,
-  lutealProteinAdjustment: 0,
-  effectiveCalories: 1900,
-  effectiveProtein: 122,
-  waterGoalOz: 85,
+  bmr: 1177.8,
+  tdee: 1619.4,
+  calories: 2019,
+  proteinG: 122,
+  carbsG: 257,
+  fatG: 56,
+  isLuteal: false,
+  lutealCalorieBonus: 0,
+  lutealProteinBonus: 0,
+  effectiveCalories: 2019,
+  effectiveProteinG: 122,
+  waterGoalOz: 84.5,
 };
 
 const MOCK_WATER_SUMMARY: WaterSummary = {
@@ -100,7 +100,6 @@ interface AppState {
 
   // Settings helpers
   setNetCalorieMode: (mode: NetCalorieMode) => void;
-  setTrainingMode: (mode: TrainingMode) => void;
 
   // Computed helpers
   caloriesConsumedToday: () => number;
@@ -176,10 +175,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       profile: { ...state.profile, netCalorieMode: mode },
     })),
-  setTrainingMode: (mode) =>
-    set((state) => ({
-      profile: { ...state.profile, trainingMode: mode },
-    })),
 
   // Computed
   caloriesConsumedToday: () =>
@@ -187,9 +182,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   caloriesRemainingToday: () =>
     get().targets.effectiveCalories - get().caloriesConsumedToday(),
   proteinConsumedToday: () =>
-    get().todayLog.reduce((sum, e) => sum + e.item.protein_g, 0),
+    get().todayLog.reduce((sum, e) => sum + e.item.proteinG, 0),
   carbsConsumedToday: () =>
-    get().todayLog.reduce((sum, e) => sum + e.item.carbs_g, 0),
+    get().todayLog.reduce((sum, e) => sum + e.item.carbsG, 0),
   fatConsumedToday: () =>
-    get().todayLog.reduce((sum, e) => sum + e.item.fat_g, 0),
+    get().todayLog.reduce((sum, e) => sum + e.item.fatG, 0),
 }));

@@ -59,8 +59,8 @@ export function MealSection({
                 activeOpacity={0.7}
               >
                 <View style={styles.entryInfo}>
-                  <Text style={styles.foodName}>{entry.item.food_name}</Text>
-                  <Text style={styles.portion}>{entry.item.portion_description}</Text>
+                  <Text style={styles.foodName}>{entry.item.foodName}</Text>
+                  <Text style={styles.portion}>{entry.item.portionDescription}</Text>
                 </View>
                 <Text style={styles.entryCal}>{entry.item.calories} cal</Text>
               </TouchableOpacity>

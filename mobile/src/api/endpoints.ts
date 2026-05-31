@@ -1,5 +1,6 @@
 // ============================================================
 // Typed API functions - one per backend endpoint (Section 16)
+// Payloads use camelCase aliases matching backend CamelModel wire contract.
 // ============================================================
 
 import { api } from './client';
@@ -7,11 +8,13 @@ import type {
   NutritionItem,
   FoodLogEntry,
   CustomFood,
+  FoodSearchResult,
   WorkoutEntry,
   ExerciseSummary,
   WaterEntry,
   WaterSummary,
   Supplement,
+  SupplementEntry,
   SupplementStatus,
   BodyMeasurement,
   BloodworkResult,
@@ -25,31 +28,36 @@ import type {
 
 // --------------- Scan (Section 7 / 16) -----------------
 
-export interface ScanPhotoResult {
+/** ScanResult matches backend ScanResult wire shape. */
+export interface ScanResult {
   items: NutritionItem[];
-  overall_confidence: number;
-  scan_notes: string;
+  overallConfidence: number;
+  scanNotes: string;
+  stub: boolean;
 }
 
 /** POST /scan/photo - Upload image (and optional depth data) for AI nutrition analysis. */
 export function scanPhoto(
-  imageBase64: string,
-  depthData: Record<string, unknown> | null,
-): Promise<ScanPhotoResult> {
-  // TODO(Section 7.1) - real call uses multipart or base64 body per backend spec
-  return api.post<ScanPhotoResult>('/scan/photo', { imageBase64, depthData });
+  imageB64: string,
+  depthData?: Record<string, unknown> | null,
+): Promise<ScanResult> {
+  return api.post<ScanResult>('/scan/photo', { imageB64, depthData: depthData ?? null });
 }
 
 /** POST /scan/barcode - Query barcode for packaged food nutrition. */
-export function scanBarcode(barcode: string): Promise<NutritionItem> {
-  // TODO(Section 4.2)
-  return api.post<NutritionItem>('/scan/barcode', { barcode });
+export function scanBarcode(barcode: string): Promise<ScanResult> {
+  return api.post<ScanResult>('/scan/barcode', { barcode });
 }
 
 /** POST /scan/label - OCR nutrition label and return parsed macros. */
-export function scanLabel(imageBase64: string): Promise<NutritionItem> {
-  // TODO(Section 4.3)
-  return api.post<NutritionItem>('/scan/label', { imageBase64 });
+export function scanLabel(
+  imageB64: string,
+  servingQuantity?: number | null,
+): Promise<ScanResult> {
+  return api.post<ScanResult>('/scan/label', {
+    imageB64,
+    servingQuantity: servingQuantity ?? null,
+  });
 }
 
 // --------------- Food Log (Section 16) -----------------
@@ -58,10 +66,10 @@ export interface CreateLogEntryPayload {
   date: string;
   meal: FoodLogEntry['meal'];
   source: FoodLogEntry['source'];
-  item: Omit<NutritionItem, 'confidence'> & { confidence?: number };
+  item: NutritionItem;
 }
 
-/** POST /log/entry - Save a food log entry. */
+/** POST /log/entry - Save a food log entry with nested item. */
 export function createLogEntry(payload: CreateLogEntryPayload): Promise<FoodLogEntry> {
   return api.post<FoodLogEntry>('/log/entry', payload);
 }
@@ -71,10 +79,10 @@ export function getLogForDay(date: string): Promise<FoodLogEntry[]> {
   return api.get<FoodLogEntry[]>(`/log/day/${date}`);
 }
 
-/** PUT /log/entry/:id - Edit an existing log entry. */
+/** PUT /log/entry/:id - Edit an existing log entry (full replacement of {date, meal, source, item}). */
 export function updateLogEntry(
   id: string,
-  payload: Partial<CreateLogEntryPayload>,
+  payload: CreateLogEntryPayload,
 ): Promise<FoodLogEntry> {
   return api.put<FoodLogEntry>(`/log/entry/${id}`, payload);
 }
@@ -86,14 +94,11 @@ export function deleteLogEntry(id: string): Promise<void> {
 
 // --------------- Exercise (Section 9 / 16) -----------------
 
-export interface CreateExercisePayload {
-  date: string;
-  workout: Omit<WorkoutEntry, 'id'>;
-}
-
 /** POST /exercise/entry - Save a workout (manual or HealthKit-sourced). */
-export function createExercise(payload: CreateExercisePayload): Promise<WorkoutEntry> {
-  return api.post<WorkoutEntry>('/exercise/entry', payload);
+export function createExercise(
+  entry: Omit<WorkoutEntry, 'id'>,
+): Promise<WorkoutEntry> {
+  return api.post<WorkoutEntry>('/exercise/entry', entry);
 }
 
 /** GET /exercise/day/:date - Get workouts for a date. */
@@ -113,16 +118,22 @@ export function getExerciseSummary(date: string): Promise<ExerciseSummary> {
 
 // --------------- User Profile (Section 16) -----------------
 
-/** GET /user/profile - Retrieve profile, calorie target, and net calorie mode. */
-export function getProfile(): Promise<{ profile: UserProfile; targets: Targets }> {
-  return api.get('/user/profile');
+/** Response shape of GET/PUT /user/profile - profile + calculated targets. */
+export interface ProfileResponse {
+  profile: UserProfile;
+  targets: Targets;
+}
+
+/** GET /user/profile - Retrieve profile and calculated targets. */
+export function getProfile(): Promise<ProfileResponse> {
+  return api.get<ProfileResponse>('/user/profile');
 }
 
 /** PUT /user/profile - Update profile and recalculate targets. */
 export function updateProfile(
   payload: Partial<Omit<UserProfile, 'id'>>,
-): Promise<{ profile: UserProfile; targets: Targets }> {
-  return api.put('/user/profile', payload);
+): Promise<ProfileResponse> {
+  return api.put<ProfileResponse>('/user/profile', payload);
 }
 
 /** PUT /user/net-calorie-mode - Switch between fixed / eat-back / net modes. */
@@ -131,20 +142,23 @@ export function setNetCalorieMode(mode: NetCalorieMode): Promise<void> {
 }
 
 /** GET /user/stats - Weekly/monthly progress (food + exercise combined). */
-export function getStats(
-  period: 'weekly' | 'monthly',
-): Promise<Record<string, unknown>> {
+export function getStats(): Promise<Record<string, unknown>> {
   // TODO(Section 18) - shape will be refined when stats screen is built
-  return api.get<Record<string, unknown>>(`/user/stats?period=${period}`);
+  return api.get<Record<string, unknown>>('/user/stats');
 }
 
 // --------------- Water (Section 10 / 16) -----------------
 
-/** POST /water/entry - Log a water entry (oz + timestamp). */
-export function logWater(oz: number, loggedAt?: string): Promise<WaterEntry> {
+/** POST /water/entry - Log a water entry (date is required; loggedAt defaults server-side). */
+export function logWater(
+  oz: number,
+  date: string,
+  loggedAt?: string,
+): Promise<WaterEntry> {
   return api.post<WaterEntry>('/water/entry', {
     oz,
-    loggedAt: loggedAt ?? new Date().toISOString(),
+    date,
+    loggedAt: loggedAt ?? '',
   });
 }
 
@@ -158,7 +172,8 @@ export function deleteWaterEntry(id: string): Promise<void> {
   return api.delete<void>(`/water/entry/${id}`);
 }
 
-/** PUT /user/water-goal - Update training/rest day water targets (in oz). */
+/** PUT /user/water-goal - Update the user's manual water goal override in oz.
+ *  Body: { oz: number } (not a query param). */
 export function setWaterGoal(oz: number): Promise<void> {
   return api.put<void>('/user/water-goal', { oz });
 }
@@ -166,8 +181,9 @@ export function setWaterGoal(oz: number): Promise<void> {
 // --------------- Supplements (Section 12 / 16) -----------------
 
 export interface LogSupplementResponse {
-  entry: Supplement;
+  entry: SupplementEntry;
   conflicts: string[];
+  nextSafeTime: string | null;
 }
 
 /** POST /supplements/log - Log a supplement as taken (returns any timing conflicts). */
@@ -177,13 +193,13 @@ export function logSupplement(
 ): Promise<LogSupplementResponse> {
   return api.post<LogSupplementResponse>('/supplements/log', {
     supplementId,
-    takenAt: takenAt ?? new Date().toISOString(),
+    takenAt: takenAt ?? '',
   });
 }
 
-/** GET /supplements/today - Today's supplement status and next safe timing windows. */
-export function getTodaySupplements(): Promise<{ supplements: SupplementStatus[] }> {
-  return api.get('/supplements/today');
+/** GET /supplements/today - Today's supplement status list (array, not wrapped object). */
+export function getTodaySupplements(): Promise<SupplementStatus[]> {
+  return api.get<SupplementStatus[]>('/supplements/today');
 }
 
 /** PUT /supplements/:id/retest - Update retest date and notes for a supplement. */
@@ -236,24 +252,19 @@ export function getCycleState(): Promise<CycleState> {
   return api.get<CycleState>('/cycle/state');
 }
 
-/** POST /cycle/manual - Manually set cycle day when no HealthKit data is present. */
-export function setManualCycle(cycleDay: number, lastPeriodStart: string): Promise<void> {
-  return api.post<void>('/cycle/manual', { cycleDay, lastPeriodStart });
+/** POST /cycle/manual - Set period start dates (replaces previous manual entries). */
+export function setManualCycle(periodStarts: string[]): Promise<CycleState> {
+  return api.post<CycleState>('/cycle/manual', { periodStarts });
 }
 
 // --------------- Training Mode / Races (Section 15 / 16) -----------------
 
-/** PUT /training/mode - Set training mode (muscle_gain / marathon / both). */
-export function setTrainingMode(mode: TrainingMode): Promise<void> {
-  return api.put<void>('/training/mode', { mode });
-}
-
 /** POST /races/entry - Add a race to the calendar. */
-export function addRace(race: Omit<Race, 'id'>): Promise<Race> {
+export function addRace(race: Omit<Race, 'id' | 'raceWeekActive'>): Promise<Race> {
   return api.post<Race>('/races/entry', race);
 }
 
-/** GET /races - All races with upcoming race-week flags. */
+/** GET /races - All races sorted by date ascending, with race-week flags. */
 export function getRaces(): Promise<Race[]> {
   return api.get<Race[]>('/races');
 }
@@ -261,13 +272,13 @@ export function getRaces(): Promise<Race[]> {
 // --------------- Custom Foods / Search (Section 4.5, 4.6 / 16) -----------------
 
 /** POST /foods/custom - Create a custom food or recipe. */
-export function createCustomFood(food: Omit<CustomFood, 'id' | 'createdAt'>): Promise<CustomFood> {
+export function createCustomFood(food: Omit<CustomFood, 'id'>): Promise<CustomFood> {
   return api.post<CustomFood>('/foods/custom', food);
 }
 
 /** GET /foods/search - Fuzzy search against USDA + IFCT + custom food database. */
-export function searchFoods(query: string, limit = 20): Promise<CustomFood[]> {
-  return api.get<CustomFood[]>(
+export function searchFoods(query: string, limit = 20): Promise<FoodSearchResult[]> {
+  return api.get<FoodSearchResult[]>(
     `/foods/search?q=${encodeURIComponent(query)}&limit=${limit}`,
   );
 }

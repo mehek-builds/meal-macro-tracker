@@ -15,6 +15,10 @@ import {
 import { useAppStore } from '@/state/useAppStore';
 import type { NetCalorieMode, TrainingMode } from '@/types';
 
+// TrainingMode is used for the settings UI but is no longer stored on UserProfile
+// (profile.goal / training phase are separate backend fields). The segmented control
+// below drives a local UI state only until a /training/mode endpoint is wired up.
+
 // ---- Generic SegmentedRow ----
 interface SegmentedRowProps<T extends string> {
   label: string;
@@ -78,7 +82,8 @@ const TRAINING_MODE_DESCRIPTIONS: Record<TrainingMode, string> = {
 export function SettingsScreen(): React.ReactElement {
   const profile = useAppStore((s) => s.profile);
   const setNetCalorieMode = useAppStore((s) => s.setNetCalorieMode);
-  const setTrainingMode = useAppStore((s) => s.setTrainingMode);
+  // trainingMode is local UI state only — no longer a UserProfile field
+  const [trainingMode, setTrainingMode] = React.useState<TrainingMode>('muscle_gain');
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -106,13 +111,13 @@ export function SettingsScreen(): React.ReactElement {
         <Text style={styles.groupHeader}>Training</Text>
         <SegmentedRow<TrainingMode>
           label="Training mode"
-          description={TRAINING_MODE_DESCRIPTIONS[profile.trainingMode]}
+          description={TRAINING_MODE_DESCRIPTIONS[trainingMode]}
           options={[
             { value: 'muscle_gain', label: 'Muscle' },
             { value: 'marathon', label: 'Marathon' },
             { value: 'both', label: 'Both' },
           ]}
-          selected={profile.trainingMode}
+          selected={trainingMode}
           onSelect={(mode) => {
             setTrainingMode(mode);
             // TODO(Section 15.2) - call setTrainingMode() API endpoint
@@ -135,7 +140,9 @@ export function SettingsScreen(): React.ReactElement {
         <View style={styles.settingBlock}>
           <Text style={styles.settingLabel}>Water goals</Text>
           <Text style={styles.settingDesc}>
-            Rest day: {profile.waterGoalRestDayOz} oz - Training day: {profile.waterGoalTrainingDayOz} oz
+            {profile.waterGoalOz != null
+              ? `Override: ${profile.waterGoalOz} oz/day`
+              : 'Auto-calculated from training duration (Section 10)'}
           </Text>
           {/* TODO(Section 10) - editable numeric inputs + setWaterGoal() API call */}
           <TouchableOpacity style={styles.linkBtn}>
