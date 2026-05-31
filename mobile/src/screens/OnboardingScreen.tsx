@@ -20,6 +20,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useAppStore } from '@/state/useAppStore';
+import { tokens, font, type, space, radius } from '@/theme/tokens';
 
 const TOTAL_STEPS = 8;
 
@@ -245,8 +246,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps): React.R
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
-  scroll: { flexGrow: 1, padding: 24 },
+  safe: { flex: 1, backgroundColor: tokens.bg },
+  scroll: { flexGrow: 1, padding: space.lg },
   progressBar: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -258,46 +259,54 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  progressDotActive: { backgroundColor: '#3B82F6' },
-  progressDotInactive: { backgroundColor: '#D1D5DB' },
+  progressDotActive: { backgroundColor: tokens.accent },
+  progressDotInactive: { backgroundColor: tokens.track },
   stepCounter: {
     textAlign: 'center',
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontFamily: font.numeric,
+    fontSize: type.caption,
+    color: tokens.inkFaint,
     marginBottom: 4,
   },
   stepContainer: { flex: 1, gap: 12 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  body: { fontSize: 15, color: '#4B5563', lineHeight: 22 },
-  fieldLabel: { fontSize: 14, fontWeight: '500', color: '#374151', marginTop: 8 },
+  title: {
+    fontFamily: font.display,
+    fontSize: type.screenTitle,
+    color: tokens.ink,
+    marginBottom: 8,
+  },
+  body: { fontFamily: font.body, fontSize: 15, color: tokens.inkMuted, lineHeight: 22 },
+  fieldLabel: { fontFamily: font.body, fontSize: type.body, color: tokens.ink, marginTop: 8 },
   mockInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderColor: tokens.border,
+    borderRadius: radius.card,
     padding: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: tokens.surface,
   },
-  mockInputText: { color: '#9CA3AF', fontSize: 14 },
+  mockInputText: { fontFamily: font.body, color: tokens.inkFaint, fontSize: type.body },
   navRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
   primaryBtn: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 10,
+    backgroundColor: tokens.accent,
+    borderRadius: radius.card,
     paddingVertical: 14,
     paddingHorizontal: 28,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
-  primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  backBtn: { justifyContent: 'center', paddingHorizontal: 12 },
-  backText: { color: '#6B7280', fontSize: 15 },
-  skipBtn: { alignSelf: 'flex-start' },
-  skipText: { color: '#9CA3AF', fontSize: 14 },
+  primaryBtnText: { fontFamily: font.bodyBold, color: tokens.surface, fontSize: type.statValue },
+  backBtn: { justifyContent: 'center', paddingHorizontal: 12, minHeight: 44 },
+  backText: { fontFamily: font.body, color: tokens.inkMuted, fontSize: 15 },
+  skipBtn: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 44 },
+  skipText: { fontFamily: font.body, color: tokens.inkFaint, fontSize: type.body },
   planCard: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
+    backgroundColor: tokens.surfaceWarm,
+    borderRadius: radius.card,
     padding: 16,
     gap: 8,
   },
-  planRow: { fontSize: 15, color: '#374151' },
-  planValue: { fontWeight: '700', color: '#111827' },
-  hint: { fontSize: 12, color: '#9CA3AF' },
+  planRow: { fontFamily: font.body, fontSize: 15, color: tokens.ink },
+  planValue: { fontFamily: font.bodyBold, color: tokens.ink },
+  hint: { fontFamily: font.body, fontSize: type.caption, color: tokens.inkFaint },
 });

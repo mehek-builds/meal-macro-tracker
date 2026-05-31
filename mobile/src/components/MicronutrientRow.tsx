@@ -1,14 +1,16 @@
 // ============================================================
-// MicronutrientRow - Section 5
-// Always visible (not collapsed).
-// Iron / Calcium / Magnesium / Zinc with red flag thresholds.
+// MicronutrientRow - always-visible chip strip (PRD Section 5.3).
+// Iron / Calcium / Magnesium / Zinc with red-flag thresholds.
+// White chips, soft warm shadow, state-colored values + mini bars.
 // ============================================================
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { tokens, font, type, radius, shadow } from '@/theme/tokens';
 
 interface MicroItem {
   label: string;
+  short: string;
   consumed: number;
   target: number;
   redThreshold: number; // flagged red below this value
@@ -20,10 +22,10 @@ interface MicroItem {
  *  Magnesium 310mg (red < 250), Zinc 8mg (red < 6).
  */
 const DEFAULT_MICROS: Omit<MicroItem, 'consumed'>[] = [
-  { label: 'Iron', target: 18, redThreshold: 15, unit: 'mg' },
-  { label: 'Calcium', target: 1000, redThreshold: 800, unit: 'mg' },
-  { label: 'Magnesium', target: 310, redThreshold: 250, unit: 'mg' },
-  { label: 'Zinc', target: 8, redThreshold: 6, unit: 'mg' },
+  { label: 'Iron', short: 'Iron', target: 18, redThreshold: 15, unit: 'mg' },
+  { label: 'Calcium', short: 'Calc', target: 1000, redThreshold: 800, unit: 'mg' },
+  { label: 'Magnesium', short: 'Mag', target: 310, redThreshold: 250, unit: 'mg' },
+  { label: 'Zinc', short: 'Zinc', target: 8, redThreshold: 6, unit: 'mg' },
 ];
 
 interface MicronutrientRowProps {
@@ -36,20 +38,22 @@ interface MicronutrientRowProps {
 function MicroCell({ item }: { item: MicroItem }): React.ReactElement {
   const isFlagged = item.consumed < item.redThreshold;
   const fraction = Math.min(1, item.consumed / item.target);
-  const color = isFlagged ? '#EF4444' : '#22C55E';
+  const color = isFlagged ? tokens.stateUnder : tokens.stateOnTrack;
 
   return (
-    <View style={styles.cell}>
-      <Text style={[styles.microLabel, isFlagged && styles.redLabel]}>
-        {item.label}
+    <View
+      style={styles.chip}
+      accessible
+      accessibilityLabel={`${item.label}, ${item.consumed} of ${item.target} milligrams${isFlagged ? ', low' : ''}`}
+    >
+      <Text style={[styles.chipVal, { color }]}>
+        {item.consumed}
+        <Text style={styles.chipUnit}>{item.unit}</Text>
       </Text>
-      <Text style={[styles.microValue, { color }]}>
-        {item.consumed.toFixed(1)}{item.unit}
-      </Text>
+      <Text style={styles.chipKey}>{item.short}</Text>
       <View style={styles.miniTrack}>
         <View style={[styles.miniFill, { width: `${Math.round(fraction * 100)}%`, backgroundColor: color }]} />
       </View>
-      <Text style={styles.microTarget}>/ {item.target}{item.unit}</Text>
     </View>
   );
 }
@@ -68,8 +72,7 @@ export function MicronutrientRow({
   ];
 
   return (
-    <View style={styles.container}>
-      {/* TODO(Section 5) - secondary row (Fiber, Sodium, B12, Vitamin D) added via swipe/collapse */}
+    <View style={styles.strip}>
       {micros.map((m) => (
         <MicroCell key={m.label} item={m} />
       ))}
@@ -78,37 +81,40 @@ export function MicronutrientRow({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  strip: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    backgroundColor: '#F9FAFB',
-    marginHorizontal: 16,
-    borderRadius: 10,
-    marginVertical: 6,
+    gap: 8,
   },
-  cell: {
-    alignItems: 'center',
+  chip: {
     flex: 1,
+    backgroundColor: tokens.surface,
+    borderRadius: radius.chip,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    gap: 2,
+    ...shadow.card,
   },
-  microLabel: {
-    fontSize: 11,
-    color: '#374151',
-    fontWeight: '500',
+  chipVal: {
+    fontFamily: font.numeric,
+    fontSize: type.body,
   },
-  redLabel: {
-    color: '#EF4444',
+  chipUnit: {
+    fontFamily: font.numeric,
+    fontSize: 9,
+    color: tokens.inkFaint,
   },
-  microValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 2,
+  chipKey: {
+    fontFamily: font.body,
+    fontSize: 9.5,
+    color: tokens.inkFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   miniTrack: {
     width: '80%',
-    height: 4,
-    backgroundColor: '#E5E7EB',
+    height: 3,
+    backgroundColor: tokens.track,
     borderRadius: 2,
     marginTop: 3,
     overflow: 'hidden',
@@ -116,10 +122,5 @@ const styles = StyleSheet.create({
   miniFill: {
     height: '100%',
     borderRadius: 2,
-  },
-  microTarget: {
-    fontSize: 9,
-    color: '#9CA3AF',
-    marginTop: 2,
   },
 });

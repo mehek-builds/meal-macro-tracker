@@ -1,10 +1,10 @@
 // ============================================================
-// ScanScreen - Section 7.1 (camera scan pipeline) + Section 7.8 (correction interface)
-// Camera preview is a placeholder View (no real expo-camera integration here).
-// Correction interface lists identified items as editable rows.
+// ScanScreen - camera scan + correction interface ("Nourish").
+// The camera viewport stays dark (a viewfinder should be), but the
+// chrome, processing loader, and results move to warm-light Nourish.
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,18 @@ import {
   SafeAreaView,
   FlatList,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import type { NutritionItem } from '@/types';
+import { X } from '@/theme/icons';
+import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
-// Mock scan result for UI development.
 const MOCK_SCAN_RESULT: NutritionItem[] = [
   {
     foodName: 'Brown rice, cooked',
@@ -40,6 +49,9 @@ const MOCK_SCAN_RESULT: NutritionItem[] = [
   },
 ];
 
+const METHODS = ['Photo', 'Barcode', 'Label', 'Voice', 'Search'];
+const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
+
 type ScanPhase = 'preview' | 'processing' | 'results';
 
 interface ScanScreenProps {
@@ -47,15 +59,37 @@ interface ScanScreenProps {
   onConfirm?: (items: NutritionItem[], meal: string) => void;
 }
 
+/** Pulsing ring shown while the photo is analyzed (PRD Section 21.9). */
+function PulseRing(): React.ReactElement {
+  const reduceMotion = useReducedMotion();
+  const p = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) {
+      p.value = 0.5;
+    } else {
+      p.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.out(Easing.ease) }), -1, false);
+    }
+  }, [reduceMotion, p]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: 0.85 + p.value * 0.35 }],
+    opacity: 0.6 - p.value * 0.45,
+  }));
+  return (
+    <View style={styles.pulseWrap}>
+      <Animated.View style={[styles.pulseRing, style]} />
+      <View style={styles.pulseCore} />
+    </View>
+  );
+}
+
 export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.ReactElement {
   const [phase, setPhase] = useState<ScanPhase>('preview');
   const [items, setItems] = useState<NutritionItem[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<string>('lunch');
+  const [method, setMethod] = useState<string>('Photo');
 
-  // Simulate a scan (TODO(Section 7.1) - replace with real camera + API call)
   const handleCapture = (): void => {
     setPhase('processing');
-    // TODO(Section 7.1) - captureWithDepth() + api.scanPhoto()
     setTimeout(() => {
       setItems(MOCK_SCAN_RESULT);
       setPhase('results');
@@ -67,66 +101,54 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
   };
 
   const handleConfirm = (): void => {
-    // TODO(Section 7.8) - call createLogEntry() for each item
     onConfirm?.(items, selectedMeal);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={styles.close}>Close</Text>
+        <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8}>
+          <X size={22} color={tokens.inkMuted} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan food</Text>
-        <View style={{ width: 48 }} />
+        <View style={{ width: 22 }} />
       </View>
 
-      {/* ---- Phase: preview ---- */}
+      {/* ---- preview ---- */}
       {phase === 'preview' && (
-        <View style={styles.flex}>
-          {/* Camera preview placeholder */}
-          <View style={styles.cameraPlaceholder}>
+        <View style={styles.cameraArea}>
+          <View style={styles.cameraHintWrap}>
             <Text style={styles.cameraText}>Camera preview</Text>
-            <Text style={styles.cameraHint}>
-              (TODO(Section 7.1) - expo-camera / react-native-vision-camera live preview)
-            </Text>
-            <Text style={styles.cameraHint}>
-              LiDAR depth capture: TODO(Section 7.3) - src/native/DepthCapture.ts
-            </Text>
+            <Text style={styles.cameraHint}>Point at your meal and capture</Text>
           </View>
-          {/* Input method tabs */}
           <View style={styles.methodRow}>
-            {['Photo', 'Barcode', 'Label', 'Voice', 'Search'].map((m) => (
-              <TouchableOpacity key={m} style={styles.methodTab}>
-                <Text style={styles.methodText}>{m}</Text>
+            {METHODS.map((m) => (
+              <TouchableOpacity key={m} style={styles.methodTab} onPress={() => setMethod(m)}>
+                <Text style={[styles.methodText, method === m && styles.methodTextActive]}>{m}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
+          <TouchableOpacity style={styles.captureBtn} onPress={handleCapture} accessibilityRole="button" accessibilityLabel="Capture photo">
             <View style={styles.captureInner} />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* ---- Phase: processing ---- */}
+      {/* ---- processing ---- */}
       {phase === 'processing' && (
         <View style={[styles.flex, styles.centered]}>
-          <Text style={styles.processingText}>Analyzing food...</Text>
-          <Text style={styles.processingHint}>
-            TODO(Section 7.4) - multi-model router (GPT-4o / Claude / GPT-4o-mini)
-          </Text>
+          <PulseRing />
+          <Text style={styles.processingText}>Analyzing…</Text>
         </View>
       )}
 
-      {/* ---- Phase: results (correction interface Section 7.8) ---- */}
+      {/* ---- results ---- */}
       {phase === 'results' && (
-        <View style={styles.flex}>
+        <View style={styles.resultsArea}>
           <Text style={styles.sectionTitle}>Review and adjust</Text>
 
-          {/* Meal selector */}
           <View style={styles.mealRow}>
-            {['breakfast', 'lunch', 'dinner', 'snacks'].map((m) => (
+            {MEALS.map((m) => (
               <TouchableOpacity
                 key={m}
                 style={[styles.mealBtn, selectedMeal === m && styles.mealBtnActive]}
@@ -142,12 +164,11 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
           <FlatList
             data={items}
             keyExtractor={(_, i) => String(i)}
+            contentContainerStyle={styles.list}
             renderItem={({ item, index }) => (
               <View style={styles.resultRow}>
                 <View style={styles.resultInfo}>
-                  {/* TODO(Section 7.8) - tap food name to fuzzy-search replacement */}
                   <Text style={styles.foodName}>{item.foodName}</Text>
-                  {/* TODO(Section 7.8) - tap portion to drag slider or type grams */}
                   <Text style={styles.portion}>{item.portionDescription}</Text>
                   {item.hiddenCaloriesWarning && (
                     <Text style={styles.warning}>{item.hiddenCaloriesWarning}</Text>
@@ -159,23 +180,22 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
                     Confidence: {Math.round(item.confidence * 100)}%
                   </Text>
                 </View>
-                {/* Swipe-left-to-delete stub */}
-                <TouchableOpacity onPress={() => handleRemoveItem(index)} style={styles.deleteBtn}>
+                <TouchableOpacity onPress={() => handleRemoveItem(index)} style={styles.deleteBtn} accessibilityRole="button">
                   <Text style={styles.deleteText}>Remove</Text>
                 </TouchableOpacity>
               </View>
             )}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
           />
 
-          {/* Add missed item */}
-          <TouchableOpacity style={styles.addMissed}>
-            <Text style={styles.addMissedText}>+ Add missed item (text search or another scan)</Text>
+          <TouchableOpacity style={styles.addMissed} accessibilityRole="button">
+            <Text style={styles.addMissedText}>+ Add missed item</Text>
           </TouchableOpacity>
 
-          {/* Confirm */}
-          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-            <Text style={styles.confirmText}>Log {items.length} item{items.length !== 1 ? 's' : ''} to {selectedMeal}</Text>
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} accessibilityRole="button">
+            <Text style={styles.confirmText}>
+              Log {items.length} item{items.length !== 1 ? 's' : ''} to {selectedMeal}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -184,103 +204,106 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#000000' },
+  safe: { flex: 1, backgroundColor: tokens.bg },
   flex: { flex: 1 },
-  centered: { alignItems: 'center', justifyContent: 'center' },
+  centered: { alignItems: 'center', justifyContent: 'center', gap: space.lg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#111827',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    backgroundColor: tokens.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.border,
   },
-  close: { color: '#60A5FA', fontSize: 16 },
-  headerTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '600' },
-  cameraPlaceholder: {
+  headerTitle: { fontFamily: font.bodyBold, fontSize: type.statValue, color: tokens.ink },
+
+  // camera (intentionally dark)
+  cameraArea: {
     flex: 1,
-    backgroundColor: '#1F2937',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    backgroundColor: tokens.cameraBg,
+    justifyContent: 'space-between',
+    paddingBottom: space.lg,
   },
-  cameraText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600', marginBottom: 8 },
-  cameraHint: { color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: 4 },
-  methodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#111827',
-    paddingVertical: 10,
-  },
+  cameraHintWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl },
+  cameraText: { fontFamily: font.bodyBold, fontSize: type.statValue, color: tokens.cameraInk, marginBottom: 6 },
+  cameraHint: { fontFamily: font.body, fontSize: type.label, color: tokens.cameraInkMuted, textAlign: 'center' },
+  methodRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 },
   methodTab: { paddingHorizontal: 8, paddingVertical: 6 },
-  methodText: { color: '#9CA3AF', fontSize: 12 },
+  methodText: { fontFamily: font.body, fontSize: type.label, color: tokens.inkFaint },
+  methodTextActive: { color: tokens.accent, fontFamily: font.bodyBold },
   captureBtn: {
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 4,
-    borderColor: '#FFFFFF',
+    borderColor: tokens.surface,
     alignSelf: 'center',
-    marginVertical: 16,
+    marginTop: space.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  captureInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
+  captureInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: tokens.surface },
+
+  // processing
+  pulseWrap: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
+  pulseRing: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: tokens.accent,
   },
-  processingText: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
-  processingHint: { color: '#9CA3AF', fontSize: 12, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 },
+  pulseCore: { width: 56, height: 56, borderRadius: 28, backgroundColor: tokens.accentSoft },
+  processingText: { fontFamily: font.body, fontSize: type.statValue, color: tokens.ink },
+
+  // results
+  resultsArea: { flex: 1 },
   sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    fontFamily: font.bodyBold,
+    fontSize: type.statValue,
+    color: tokens.ink,
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
     paddingBottom: 4,
-    backgroundColor: '#111827',
   },
-  mealRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#111827',
-  },
+  mealRow: { flexDirection: 'row', gap: 8, paddingHorizontal: space.lg, paddingVertical: space.sm },
   mealBtn: {
-    borderRadius: 16,
+    borderRadius: radius.chip,
     borderWidth: 1,
-    borderColor: '#374151',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: tokens.border,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  mealBtnActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
-  mealBtnText: { color: '#9CA3AF', fontSize: 13 },
-  mealBtnTextActive: { color: '#FFFFFF' },
+  mealBtnActive: { backgroundColor: tokens.accent, borderColor: tokens.accent },
+  mealBtnText: { fontFamily: font.body, fontSize: 13, color: tokens.inkMuted },
+  mealBtnTextActive: { color: tokens.surface, fontFamily: font.bodyBold },
+  list: { paddingHorizontal: space.lg, paddingTop: space.sm },
   resultRow: {
     flexDirection: 'row',
-    padding: 14,
-    backgroundColor: '#1F2937',
+    padding: space.md,
+    backgroundColor: tokens.surface,
+    borderRadius: radius.card,
+    ...shadow.card,
   },
   resultInfo: { flex: 1 },
-  foodName: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
-  portion: { color: '#9CA3AF', fontSize: 13, marginTop: 2 },
-  warning: { color: '#EAB308', fontSize: 12, marginTop: 4 },
-  macroLine: { color: '#60A5FA', fontSize: 12, marginTop: 4 },
-  confidence: { color: '#6B7280', fontSize: 11, marginTop: 2 },
+  foodName: { fontFamily: font.bodyBold, fontSize: type.body, color: tokens.ink },
+  portion: { fontFamily: font.body, fontSize: 13, color: tokens.inkFaint, marginTop: 2 },
+  warning: { fontFamily: font.body, fontSize: 12, color: tokens.stateClose, marginTop: 4 },
+  macroLine: { fontFamily: font.numeric, fontSize: 12, color: tokens.inkMuted, marginTop: 4 },
+  confidence: { fontFamily: font.body, fontSize: type.caption, color: tokens.inkFaint, marginTop: 2 },
   deleteBtn: { justifyContent: 'center', paddingLeft: 12 },
-  deleteText: { color: '#EF4444', fontSize: 13 },
-  separator: { height: 1, backgroundColor: '#374151' },
-  addMissed: { padding: 14, backgroundColor: '#111827' },
-  addMissedText: { color: '#3B82F6', fontSize: 14 },
+  deleteText: { fontFamily: font.bodyBold, fontSize: 13, color: tokens.stateUnder },
+  addMissed: { paddingHorizontal: space.lg, paddingVertical: space.md },
+  addMissedText: { fontFamily: font.bodyBold, fontSize: type.body, color: tokens.accent },
   confirmBtn: {
-    margin: 16,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    padding: 16,
+    margin: space.lg,
+    backgroundColor: tokens.accent,
+    borderRadius: radius.card,
+    padding: space.md,
     alignItems: 'center',
   },
-  confirmText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  confirmText: { fontFamily: font.bodyBold, fontSize: type.statValue, color: tokens.surface },
 });

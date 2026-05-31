@@ -1,6 +1,6 @@
 // ============================================================
-// ProgressScreen - Sections 13, 14, 10.7
-// Body measurements + bloodwork log + weekly water view.
+// ProgressScreen - measurements + bloodwork + weekly water.
+// Nourish reskin with warm cards and empty states (PRD 6.4 / 7).
 // ============================================================
 
 import React, { useState } from 'react';
@@ -13,10 +13,11 @@ import {
   SafeAreaView,
 } from 'react-native';
 import type { BodyMeasurement, BloodworkResult } from '@/types';
+import { LineChart } from '@/theme/icons';
+import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
 type ProgressTab = 'measurements' | 'bloodwork' | 'water';
 
-// Mock measurements (Section 13)
 const MOCK_MEASUREMENTS: BodyMeasurement[] = [
   {
     id: 'meas-1',
@@ -30,7 +31,6 @@ const MOCK_MEASUREMENTS: BodyMeasurement[] = [
   },
 ];
 
-// Mock bloodwork (Section 14)
 const MOCK_BLOODWORK: BloodworkResult[] = [
   {
     id: 'bw-1',
@@ -70,7 +70,6 @@ const MOCK_BLOODWORK: BloodworkResult[] = [
   },
 ];
 
-// Mock weekly water data (Section 10.7)
 const MOCK_WEEKLY_WATER = [
   { day: 'Mon', oz: 90, goalMet: true },
   { day: 'Tue', oz: 72, goalMet: false },
@@ -82,38 +81,53 @@ const MOCK_WEEKLY_WATER = [
 ];
 const WATER_GOAL_OZ = 85;
 
-// ---------- Sub-sections ----------
+// ---------- shared ----------
+
+function EmptyState({ title }: { title: string }): React.ReactElement {
+  return (
+    <View style={styles.emptyCard}>
+      <View style={styles.emptyIcon}>
+        <LineChart size={26} color={tokens.accent} strokeWidth={2} />
+      </View>
+      <Text style={styles.emptyText}>{title}</Text>
+    </View>
+  );
+}
+
+// ---------- sections ----------
 
 function MeasurementsSection(): React.ReactElement {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Body Measurements</Text>
+      <Text style={styles.sectionTitle}>Body measurements</Text>
       <Text style={styles.sectionHint}>
-        Measured monthly. Rising arms/thighs + stable waist = lean gain. (Section 13)
+        Measured monthly. Rising arms and thighs with a stable waist = lean gain.
       </Text>
-      {/* TODO(Section 13.2) - chart view per measurement over time */}
-      {MOCK_MEASUREMENTS.map((m) => (
-        <View key={m.id} style={styles.measureCard}>
-          <Text style={styles.measureDate}>{m.date}</Text>
-          <View style={styles.measureGrid}>
-            <MeasureItem label="Upper arm" value={m.upperArmCm} />
-            <MeasureItem label="Chest" value={m.chestCm} />
-            <MeasureItem label="Waist" value={m.waistCm} />
-            <MeasureItem label="Hips" value={m.hipsCm} />
-            <MeasureItem label="Thigh" value={m.thighCm} />
+      {MOCK_MEASUREMENTS.length === 0 ? (
+        <EmptyState title="Log a few months to see trends." />
+      ) : (
+        MOCK_MEASUREMENTS.map((m) => (
+          <View key={m.id} style={styles.card}>
+            <Text style={styles.cardDate}>{m.date}</Text>
+            <View style={styles.measureGrid}>
+              <MeasureItem label="Upper arm" value={m.upperArmCm} />
+              <MeasureItem label="Chest" value={m.chestCm} />
+              <MeasureItem label="Waist" value={m.waistCm} />
+              <MeasureItem label="Hips" value={m.hipsCm} />
+              <MeasureItem label="Thigh" value={m.thighCm} />
+            </View>
+            {m.notes && <Text style={styles.notes}>{m.notes}</Text>}
           </View>
-          {m.notes && <Text style={styles.notes}>{m.notes}</Text>}
-        </View>
-      ))}
-      {/* TODO(Section 13.2) - monthly reminder + add entry button */}
-      <TouchableOpacity style={styles.addBtn}>
+        ))
+      )}
+      <TouchableOpacity style={styles.addBtn} accessibilityRole="button">
         <Text style={styles.addBtnText}>+ Log measurements</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-function MeasureItem({ label, value }: { label: string; value: number }): React.ReactElement {
+function MeasureItem({ label, value }: { label: string; value?: number | null }): React.ReactElement {
   return (
     <View style={styles.measureItem}>
       <Text style={styles.measureLabel}>{label}</Text>
@@ -124,10 +138,10 @@ function MeasureItem({ label, value }: { label: string; value: number }): React.
 
 function statusColor(status: BloodworkResult['status']): string {
   switch (status) {
-    case 'low': return '#EF4444';
-    case 'high': return '#F59E0B';
-    case 'normal': return '#22C55E';
-    case 'pending': return '#9CA3AF';
+    case 'low': return tokens.stateUnder;
+    case 'high': return tokens.stateClose;
+    case 'normal': return tokens.stateOnTrack;
+    case 'pending': return tokens.inkFaint;
   }
 }
 
@@ -135,29 +149,28 @@ function BloodworkSection(): React.ReactElement {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Bloodwork</Text>
-      <Text style={styles.sectionHint}>
-        Results and upcoming retests. (Section 14)
-      </Text>
-      {/* TODO(Section 14.2) - chart each marker over time with reference band */}
-      {MOCK_BLOODWORK.map((b) => (
-        <View key={b.id} style={styles.bloodCard}>
-          <View style={styles.bloodHeader}>
-            <Text style={styles.markerName}>{b.markerName}</Text>
-            <Text style={[styles.statusBadge, { color: statusColor(b.status) }]}>
-              {b.status.toUpperCase()}
+      <Text style={styles.sectionHint}>Results and upcoming retests.</Text>
+      {MOCK_BLOODWORK.length === 0 ? (
+        <EmptyState title="No results yet. Add your last panel." />
+      ) : (
+        MOCK_BLOODWORK.map((b) => (
+          <View key={b.id} style={styles.card}>
+            <View style={styles.bloodHeader}>
+              <Text style={styles.markerName}>{b.markerName}</Text>
+              <Text style={[styles.statusBadge, { color: statusColor(b.status) }]}>
+                {b.status.toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.bloodValue}>
+              {b.value} {b.unit} (ref: {b.refRangeLow}-{b.refRangeHigh} {b.unit})
             </Text>
+            <Text style={styles.cardDate}>Tested: {b.date}</Text>
+            {b.retestDate && <Text style={styles.retestDate}>Retest: {b.retestDate}</Text>}
+            {b.notes && <Text style={styles.notes}>{b.notes}</Text>}
           </View>
-          <Text style={styles.bloodValue}>
-            {b.value} {b.unit} (ref: {b.refRangeLow}-{b.refRangeHigh} {b.unit})
-          </Text>
-          <Text style={styles.bloodDate}>Tested: {b.date}</Text>
-          {b.retestDate && (
-            <Text style={styles.retestDate}>Retest: {b.retestDate}</Text>
-          )}
-          {b.notes && <Text style={styles.notes}>{b.notes}</Text>}
-        </View>
-      ))}
-      <TouchableOpacity style={styles.addBtn}>
+        ))
+      )}
+      <TouchableOpacity style={styles.addBtn} accessibilityRole="button">
         <Text style={styles.addBtnText}>+ Log bloodwork result</Text>
       </TouchableOpacity>
     </View>
@@ -173,36 +186,36 @@ function WeeklyWaterSection(): React.ReactElement {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Weekly Water</Text>
-      <Text style={styles.sectionHint}>Section 10.7 - goal line: {WATER_GOAL_OZ} oz/day</Text>
+      <Text style={styles.sectionTitle}>Weekly water</Text>
+      <Text style={styles.sectionHint}>Goal line: {WATER_GOAL_OZ} oz/day</Text>
 
-      {/* Bar chart stub */}
-      <View style={styles.barChart}>
-        {MOCK_WEEKLY_WATER.map((d) => {
-          const height = Math.round((d.oz / maxOz) * 100);
-          return (
-            <View key={d.day} style={styles.barWrapper}>
-              <View
-                style={[
-                  styles.bar,
-                  { height: height, backgroundColor: d.goalMet ? '#22C55E' : '#D1D5DB' },
-                ]}
-              />
-              <Text style={styles.barLabel}>{d.day}</Text>
-              <Text style={styles.barOz}>{d.oz}</Text>
-            </View>
-          );
-        })}
+      <View style={styles.card}>
+        <View style={styles.barChart}>
+          {MOCK_WEEKLY_WATER.map((d) => {
+            const height = Math.round((d.oz / maxOz) * 100);
+            return (
+              <View key={d.day} style={styles.barWrapper}>
+                <View
+                  style={[
+                    styles.bar,
+                    { height, backgroundColor: d.goalMet ? tokens.stateOnTrack : tokens.track },
+                  ]}
+                />
+                <Text style={styles.barLabel}>{d.day}</Text>
+                <Text style={styles.barOz}>{d.oz}</Text>
+              </View>
+            );
+          })}
+        </View>
+        <Text style={styles.waterStats}>
+          Weekly avg: {weeklyAvg} oz · Hit goal {daysHitGoal} of 7 days
+        </Text>
       </View>
-      {/* TODO(Section 10.7) - draw goal line across chart at WATER_GOAL_OZ level */}
-      <Text style={styles.waterStats}>
-        Weekly avg: {weeklyAvg} oz - Hit goal {daysHitGoal} of 7 days
-      </Text>
     </View>
   );
 }
 
-// ---------- Main screen ----------
+// ---------- main ----------
 export function ProgressScreen(): React.ReactElement {
   const [tab, setTab] = useState<ProgressTab>('measurements');
 
@@ -232,74 +245,69 @@ export function ProgressScreen(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
-  scroll: { padding: 16, paddingBottom: 32 },
+  safe: { flex: 1, backgroundColor: tokens.bg },
+  scroll: { padding: space.lg, paddingBottom: space.xxl },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: tokens.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: tokens.border,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#3B82F6',
-  },
-  tabText: { fontSize: 14, color: '#6B7280' },
-  tabTextActive: { color: '#3B82F6', fontWeight: '600' },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: tokens.accent },
+  tabText: { fontFamily: font.body, fontSize: type.body, color: tokens.inkMuted },
+  tabTextActive: { fontFamily: font.bodyBold, color: tokens.accent },
   section: { gap: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  sectionHint: { fontSize: 13, color: '#9CA3AF' },
-  measureCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  sectionTitle: { fontFamily: font.display, fontSize: type.sectionTitle, color: tokens.ink },
+  sectionHint: { fontFamily: font.body, fontSize: 13, color: tokens.inkMuted },
+  card: {
+    backgroundColor: tokens.surface,
+    borderRadius: radius.card,
+    padding: space.md,
+    gap: 4,
+    ...shadow.card,
   },
-  measureDate: { fontSize: 13, color: '#6B7280', marginBottom: 8 },
-  measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  cardDate: { fontFamily: font.numeric, fontSize: 12, color: tokens.inkFaint },
+  measureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 4 },
   measureItem: { width: '45%' },
-  measureLabel: { fontSize: 12, color: '#9CA3AF' },
-  measureValue: { fontSize: 16, fontWeight: '600', color: '#111827', marginTop: 2 },
-  notes: { fontSize: 12, color: '#9CA3AF', marginTop: 8 },
+  measureLabel: { fontFamily: font.body, fontSize: 12, color: tokens.inkFaint },
+  measureValue: { fontFamily: font.numeric, fontSize: type.statValue, color: tokens.ink, marginTop: 2 },
+  notes: { fontFamily: font.body, fontSize: 12, color: tokens.inkMuted, marginTop: 8 },
   addBtn: {
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 10,
+    backgroundColor: tokens.accentSoft,
+    borderRadius: radius.card,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    minHeight: 44,
   },
-  addBtnText: { color: '#3B82F6', fontSize: 14, fontWeight: '500' },
-  bloodCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 4,
-  },
+  addBtnText: { fontFamily: font.bodyBold, color: tokens.accent, fontSize: type.body },
   bloodHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  markerName: { fontSize: 15, fontWeight: '600', color: '#111827', flex: 1 },
-  statusBadge: { fontSize: 11, fontWeight: '700' },
-  bloodValue: { fontSize: 14, color: '#374151' },
-  bloodDate: { fontSize: 12, color: '#9CA3AF' },
-  retestDate: { fontSize: 12, color: '#F59E0B' },
-  barChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 120,
-    gap: 6,
-    paddingTop: 8,
-  },
+  markerName: { fontFamily: font.bodyBold, fontSize: type.body, color: tokens.ink, flex: 1 },
+  statusBadge: { fontFamily: font.bodyBold, fontSize: type.caption },
+  bloodValue: { fontFamily: font.numeric, fontSize: 13, color: tokens.ink },
+  retestDate: { fontFamily: font.numeric, fontSize: 12, color: tokens.stateClose },
+  barChart: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6, paddingTop: 8 },
   barWrapper: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   bar: { width: '80%', borderRadius: 3, minHeight: 4 },
-  barLabel: { fontSize: 10, color: '#6B7280', marginTop: 4 },
-  barOz: { fontSize: 9, color: '#9CA3AF' },
-  waterStats: { fontSize: 13, color: '#374151', marginTop: 8 },
+  barLabel: { fontFamily: font.body, fontSize: 10, color: tokens.inkMuted, marginTop: 4 },
+  barOz: { fontFamily: font.numeric, fontSize: 9, color: tokens.inkFaint },
+  waterStats: { fontFamily: font.body, fontSize: 13, color: tokens.inkMuted, marginTop: 10 },
+  emptyCard: {
+    backgroundColor: tokens.surface,
+    borderRadius: radius.card,
+    padding: space.xl,
+    alignItems: 'center',
+    gap: 12,
+    ...shadow.card,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.badge,
+    backgroundColor: tokens.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: { fontFamily: font.body, fontSize: type.body, color: tokens.inkMuted, textAlign: 'center' },
 });

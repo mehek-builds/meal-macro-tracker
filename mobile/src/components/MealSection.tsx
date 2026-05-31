@@ -1,18 +1,20 @@
 // ============================================================
-// MealSection - Section 5 (collapsible meal sections)
-// Breakfast / Lunch / Dinner / Snacks with total cal + logged items.
+// MealSection - collapsible meal card (PRD Section 5.4).
+// White card, soft warm shadow, Lucide chevrons, terracotta add
+// prompts. Empty state is a warm "+ Add [meal]", never a cold
+// "no items" message.
 // ============================================================
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { FoodLogEntry } from '@/types';
+import { Plus, ChevronUp, ChevronDown } from '@/theme/icons';
+import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
 interface MealSectionProps {
   meal: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
   entries: FoodLogEntry[];
-  /** Called when user taps a log item to edit/delete. TODO(Section 7.8) */
   onPressEntry?: (entry: FoodLogEntry) => void;
-  /** Called when user taps the + button to add food. TODO(Section 4) */
   onAddFood?: () => void;
 }
 
@@ -31,6 +33,7 @@ export function MealSection({
 }: MealSectionProps): React.ReactElement {
   const [expanded, setExpanded] = useState(true);
   const totalCal = entries.reduce((sum, e) => sum + e.item.calories, 0);
+  const label = MEAL_LABELS[meal];
 
   return (
     <View style={styles.container}>
@@ -38,39 +41,59 @@ export function MealSection({
         style={styles.header}
         onPress={() => setExpanded((v) => !v)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${totalCal} calories. ${expanded ? 'Collapse' : 'Expand'}.`}
       >
-        <Text style={styles.mealLabel}>{MEAL_LABELS[meal]}</Text>
+        <Text style={styles.mealLabel}>{label}</Text>
         <View style={styles.headerRight}>
           <Text style={styles.totalCal}>{totalCal} cal</Text>
-          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
+          {expanded ? (
+            <ChevronUp size={18} color={tokens.inkFaint} strokeWidth={2} />
+          ) : (
+            <ChevronDown size={18} color={tokens.inkFaint} strokeWidth={2} />
+          )}
         </View>
       </TouchableOpacity>
 
       {expanded && (
         <View style={styles.body}>
           {entries.length === 0 ? (
-            <Text style={styles.empty}>No items logged</Text>
+            <TouchableOpacity
+              style={styles.addPrompt}
+              onPress={onAddFood}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Plus size={17} color={tokens.accent} strokeWidth={2} />
+              <Text style={styles.addText}>Add {label.toLowerCase()}</Text>
+            </TouchableOpacity>
           ) : (
-            entries.map((entry) => (
+            <>
+              {entries.map((entry) => (
+                <TouchableOpacity
+                  key={entry.id}
+                  style={styles.entryRow}
+                  onPress={() => onPressEntry?.(entry)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.entryInfo}>
+                    <Text style={styles.foodName}>{entry.item.foodName}</Text>
+                    <Text style={styles.portion}>{entry.item.portionDescription}</Text>
+                  </View>
+                  <Text style={styles.entryCal}>{entry.item.calories} cal</Text>
+                </TouchableOpacity>
+              ))}
               <TouchableOpacity
-                key={entry.id}
-                style={styles.entryRow}
-                onPress={() => onPressEntry?.(entry)}
+                style={styles.addPrompt}
+                onPress={onAddFood}
                 activeOpacity={0.7}
+                accessibilityRole="button"
               >
-                <View style={styles.entryInfo}>
-                  <Text style={styles.foodName}>{entry.item.foodName}</Text>
-                  <Text style={styles.portion}>{entry.item.portionDescription}</Text>
-                </View>
-                <Text style={styles.entryCal}>{entry.item.calories} cal</Text>
+                <Plus size={17} color={tokens.accent} strokeWidth={2} />
+                <Text style={styles.addText}>Add food</Text>
               </TouchableOpacity>
-            ))
+            </>
           )}
-
-          {/* TODO(Section 4) - tapping + should open scan/search input methods */}
-          <TouchableOpacity style={styles.addButton} onPress={onAddFood}>
-            <Text style={styles.addText}>+ Add food</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -79,23 +102,20 @@ export function MealSection({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: tokens.surface,
+    borderRadius: radius.card,
+    ...shadow.card,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    padding: space.md,
   },
   mealLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontFamily: font.bodyBold,
+    fontSize: type.body,
+    color: tokens.ink,
   },
   headerRight: {
     flexDirection: 'row',
@@ -103,57 +123,54 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   totalCal: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  chevron: {
-    fontSize: 10,
-    color: '#9CA3AF',
+    fontFamily: font.numeric,
+    fontSize: 13,
+    color: tokens.inkMuted,
   },
   body: {
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: tokens.border,
     paddingBottom: 4,
-  },
-  empty: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    padding: 12,
-    paddingTop: 8,
   },
   entryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingHorizontal: space.md,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F9FAFB',
+    borderBottomColor: tokens.border,
   },
   entryInfo: {
     flex: 1,
   },
   foodName: {
-    fontSize: 14,
-    color: '#111827',
+    fontFamily: font.body,
+    fontSize: type.body,
+    color: tokens.ink,
   },
   portion: {
+    fontFamily: font.body,
     fontSize: 12,
-    color: '#9CA3AF',
+    color: tokens.inkFaint,
     marginTop: 1,
   },
   entryCal: {
+    fontFamily: font.numeric,
     fontSize: 13,
-    color: '#374151',
-    fontWeight: '500',
+    color: tokens.inkMuted,
   },
-  addButton: {
-    padding: 12,
-    paddingLeft: 14,
+  addPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: space.md,
+    paddingVertical: 12,
+    minHeight: 44,
   },
   addText: {
-    fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '500',
+    fontFamily: font.bodyBold,
+    fontSize: type.body,
+    color: tokens.accent,
   },
 });

@@ -1,40 +1,58 @@
 // ============================================================
-// WaterTracker - Section 10.2
-// 8/12/16/20oz preset buttons + progress bar.
+// WaterTracker - hydration card (PRD Section 5.5).
+// White card (no blue island). Fill is accent-tinted until the
+// goal is hit, then calm blue (stateHit = success). Fill animates.
 // ============================================================
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import type { WaterSummary } from '@/types';
+import { Droplet } from '@/theme/icons';
+import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
 const PRESETS_OZ: number[] = [8, 12, 16, 20];
 
 interface WaterTrackerProps {
   summary: WaterSummary;
-  /** Called when a preset or custom amount is tapped. TODO(Section 10.2) */
   onAddWater?: (oz: number) => void;
 }
 
 export function WaterTracker({ summary, onAddWater }: WaterTrackerProps): React.ReactElement {
   const fraction = Math.min(1, summary.totalOz / Math.max(1, summary.goalOz));
-  const barColor = summary.percentComplete >= 100 ? '#1D4ED8' : '#60A5FA';
+  const isFull = summary.percentComplete >= 100;
+  const fillColor = isFull ? tokens.stateHit : tokens.accent;
+
+  const reduceMotion = useReducedMotion();
+  const w = useSharedValue(0);
+  useEffect(() => {
+    w.value = reduceMotion
+      ? fraction
+      : withSpring(fraction, { damping: 18, stiffness: 110, mass: 0.6 });
+  }, [fraction, reduceMotion, w]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Water</Text>
+        <View style={styles.titleRow}>
+          <Droplet size={16} color={tokens.accent} strokeWidth={2} />
+          <Text style={styles.title}>Water</Text>
+        </View>
         <Text style={styles.numbers}>
           {summary.totalOz} / {summary.goalOz} oz
         </Text>
       </View>
 
-      {/* Progress bar */}
       <View style={styles.track}>
-        {/* TODO(Section 10.2) - animate fill with react-native-reanimated */}
-        <View style={[styles.fill, { width: `${Math.round(fraction * 100)}%`, backgroundColor: barColor }]} />
+        <Animated.View style={[styles.fill, fillStyle, { backgroundColor: fillColor }]} />
       </View>
 
-      {/* Preset buttons - Section 10.2 */}
       <View style={styles.presets}>
         {PRESETS_OZ.map((oz) => (
           <TouchableOpacity
@@ -42,13 +60,14 @@ export function WaterTracker({ summary, onAddWater }: WaterTrackerProps): React.
             style={styles.presetBtn}
             onPress={() => onAddWater?.(oz)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${oz} ounces of water`}
           >
             <Text style={styles.presetText}>+{oz}oz</Text>
           </TouchableOpacity>
         ))}
-        {/* TODO(Section 10.2) - custom amount input (remembers last custom value as 5th option) */}
-        <TouchableOpacity style={[styles.presetBtn, styles.customBtn]} activeOpacity={0.7}>
-          <Text style={styles.customText}>Custom</Text>
+        <TouchableOpacity style={styles.presetBtn} activeOpacity={0.7} accessibilityRole="button">
+          <Text style={styles.presetText}>Custom</Text>
         </TouchableOpacity>
       </View>
 
@@ -61,33 +80,38 @@ export function WaterTracker({ summary, onAddWater }: WaterTrackerProps): React.
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    padding: 14,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    marginVertical: 6,
+    backgroundColor: tokens.surface,
+    borderRadius: radius.card,
+    padding: space.md,
+    ...shadow.card,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E3A5F',
+    fontFamily: font.bodyBold,
+    fontSize: type.body,
+    color: tokens.ink,
   },
   numbers: {
-    fontSize: 14,
-    color: '#1D4ED8',
-    fontWeight: '500',
+    fontFamily: font.numeric,
+    fontSize: 13,
+    color: tokens.inkMuted,
   },
   track: {
     height: 10,
-    backgroundColor: '#BFDBFE',
+    backgroundColor: tokens.track,
     borderRadius: 5,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   fill: {
     height: '100%',
@@ -99,27 +123,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   presetBtn: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    backgroundColor: tokens.accentSoft,
+    borderRadius: radius.chip,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   presetText: {
-    color: '#FFFFFF',
+    fontFamily: font.bodyBold,
     fontSize: 13,
-    fontWeight: '600',
-  },
-  customBtn: {
-    backgroundColor: '#93C5FD',
-  },
-  customText: {
-    color: '#1E3A5F',
-    fontSize: 13,
-    fontWeight: '600',
+    color: tokens.accent,
   },
   remaining: {
-    marginTop: 8,
+    fontFamily: font.body,
     fontSize: 12,
-    color: '#1D4ED8',
+    color: tokens.inkMuted,
+    marginTop: 10,
   },
 });

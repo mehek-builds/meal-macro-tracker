@@ -1,11 +1,18 @@
 // ============================================================
-// MacroBars - Section 5
-// Three progress bars: Protein / Carbs / Fat.
-// Color logic: red = under target (surplus app), NOT over.
+// MacroBars - Protein / Carbs / Fat (PRD Section 5.2).
+// Inverted color logic: red = still under target (this is a
+// surplus app), blue = hit. Fills animate with Reanimated.
 // ============================================================
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
+import { tokens, font, type, space } from '@/theme/tokens';
 
 interface MacroBarProps {
   label: string;
@@ -14,30 +21,42 @@ interface MacroBarProps {
   unit?: string;
 }
 
-/** Color = same logic as CalorieRing. Red means still short, not over. */
+/** Same inverted logic as CalorieRing. Red means still short, not over. */
 function barColor(consumed: number, target: number): string {
   const remaining = target - consumed;
-  if (remaining <= 0) return '#3B82F6';   // blue - hit
-  if (remaining <= target * 0.1) return '#22C55E'; // green - within 10%
-  if (remaining <= target * 0.25) return '#EAB308'; // yellow
-  return '#EF4444';                        // red - significantly under
+  if (remaining <= 0) return tokens.stateHit; // blue - hit
+  if (remaining <= target * 0.1) return tokens.stateOnTrack; // green - within 10%
+  if (remaining <= target * 0.25) return tokens.stateClose; // amber
+  return tokens.stateUnder; // red - significantly under
 }
 
 function MacroBar({ label, consumed, target, unit = 'g' }: MacroBarProps): React.ReactElement {
   const fraction = Math.min(1, consumed / Math.max(1, target));
   const color = barColor(consumed, target);
 
+  const reduceMotion = useReducedMotion();
+  const w = useSharedValue(0);
+  useEffect(() => {
+    w.value = reduceMotion
+      ? fraction
+      : withSpring(fraction, { damping: 18, stiffness: 110, mass: 0.6 });
+  }, [fraction, reduceMotion, w]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
+
   return (
-    <View style={styles.macroRow}>
+    <View
+      style={styles.macroRow}
+      accessible
+      accessibilityLabel={`${label}, ${Math.round(consumed)} of ${target} ${unit === 'g' ? 'grams' : unit}`}
+    >
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.values}>
-          {Math.round(consumed)}{unit} / {target}{unit}
+          {Math.round(consumed)} / {target} {unit}
         </Text>
       </View>
       <View style={styles.track}>
-        {/* TODO(Section 5) - animate with react-native-reanimated Animated.Value */}
-        <View style={[styles.fill, { width: `${Math.round(fraction * 100)}%`, backgroundColor: color }]} />
+        <Animated.View style={[styles.fill, fillStyle, { backgroundColor: color }]} />
       </View>
     </View>
   );
@@ -61,9 +80,7 @@ export function MacroBars({ protein, carbs, fat }: MacroBarsProps): React.ReactE
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    gap: 10,
-    marginVertical: 8,
+    gap: 11,
   },
   macroRow: {
     gap: 4,
@@ -73,17 +90,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#374151',
+    fontFamily: font.body,
+    fontSize: type.label,
+    color: tokens.ink,
   },
   values: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontFamily: font.numeric,
+    fontSize: type.label,
+    color: tokens.inkMuted,
   },
   track: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
+    height: 7,
+    backgroundColor: tokens.track,
     borderRadius: 4,
     overflow: 'hidden',
   },

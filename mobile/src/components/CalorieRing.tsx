@@ -1,75 +1,161 @@
 // ============================================================
-// CalorieRing - Section 5 (Surplus Mode)
-// Center = calories STILL NEEDED (not "allowed").
-// Red = under by 500+ cal, Yellow = under by 200-500, Green = on track, Blue = target hit.
+// CalorieRing - the hero (PRD Section 5.1 / 21.5).
+// Inverted ring: center = calories STILL NEEDED.
+// Real animated Skia arc. State color by calories remaining, with
+// the "morning rule": red is suppressed before 13:00 so a near-empty
+// ring reads as opportunity, not deficit.
 // ============================================================
 
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Canvas, Path, Skia } from '@shopify/react-native-skia';
+import {
+  useSharedValue,
+  withSpring,
+  useReducedMotion,
+} from 'react-native-reanimated';
+import { Moon } from '@/theme/icons';
+import { tokens, font, type, space, radius } from '@/theme/tokens';
 
 interface CalorieRingProps {
   /** Target calories for the day (after luteal adjustment). */
   target: number;
   /** Calories consumed so far today. */
   consumed: number;
-  /** Whether we are currently in the luteal phase (shows badge). Section 5. */
+  /** Active calories burned today (shown in the stat row). */
+  burned?: number;
+  /** Whether we are currently in the luteal phase (shows badge). */
   isLuteal?: boolean;
-  /** Adjusted target label shown when luteal (e.g. "+200 cal"). Section 11.4 */
+  /** Adjusted target label shown when luteal (e.g. "+200 cal, +12g protein"). */
   lutealLabel?: string;
 }
 
-function ringColor(remaining: number): string {
-  if (remaining <= 0) return '#3B82F6';         // blue - target hit / slightly over
-  if (remaining <= 200) return '#22C55E';       // green - on track
-  if (remaining <= 500) return '#EAB308';       // yellow - under by 200-500
-  return '#EF4444';                             // red - under by 500+
-}
+const RING_SIZE = 200;
+const STROKE = 16;
+const R = 84;
+const CX = 100;
+const CY = 100;
+
+const fmt = (n: number): string => Math.round(n).toLocaleString('en-US');
 
 /**
- * Placeholder ring using a View border-radius circle.
- * TODO(Section 5) - replace with @shopify/react-native-skia arc path for
- * smooth animated ring (react-native-reanimated progress value).
+ * State color by calories remaining (the inverted logic). The morning rule
+ * (PRD 21.9): before 13:00, the red "you are under" state is suppressed in
+ * favor of a warm terracotta arc, framed as a fresh start.
  */
+function ringColor(remaining: number, hour: number): string {
+  if (remaining <= 0) return tokens.stateHit; // blue - surplus hit
+  if (remaining <= 200) return tokens.stateOnTrack; // green - on track
+  if (remaining <= 500) return tokens.stateClose; // amber - getting close
+  if (hour < 13) return tokens.accent; // morning rule: warm-neutral, not red
+  return tokens.stateUnder; // red - significantly under
+}
+
 export function CalorieRing({
   target,
   consumed,
+  burned,
   isLuteal = false,
   lutealLabel,
 }: CalorieRingProps): React.ReactElement {
   const remaining = target - consumed;
-  const color = ringColor(remaining);
-  const progressFraction = Math.min(1, consumed / target);
-  const progressPct = Math.round(progressFraction * 100);
+  const hour = new Date().getHours();
+  const color = ringColor(remaining, hour);
+  const fraction = Math.min(1, consumed / Math.max(1, target));
+  const progressPct = Math.round(fraction * 100);
+  const isFreshStart = consumed === 0 && hour < 12;
+
+  // Full-circle path, drawn from 12 o'clock clockwise. The progress arc is the
+  // same path trimmed to `progress` (0..1).
+  const circlePath = useMemo(() => {
+    const p = Skia.Path.Make();
+    p.addArc(Skia.XYWHRect(CX - R, CY - R, R * 2, R * 2), -90, 360);
+    return p;
+  }, []);
+
+  const reduceMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      progress.value = fraction;
+    } else {
+      progress.value = withSpring(fraction, {
+        damping: 16,
+        stiffness: 90,
+        mass: 0.7,
+      });
+    }
+  }, [fraction, reduceMotion, progress]);
+
+  const a11yLabel =
+    `${fmt(Math.max(0, remaining))} calories still needed, ` +
+    `${progressPct} percent of ${fmt(target)} eaten`;
 
   return (
     <View style={styles.wrapper}>
-      {/* TODO(Section 5) - Skia arc ring; for now a plain circular border */}
-      <View style={[styles.ring, { borderColor: color }]}>
-        <Text style={[styles.remainingNumber, { color }]}>
-          {Math.max(0, remaining)}
-        </Text>
-        <Text style={styles.remainingLabel}>cal still needed</Text>
-        <Text style={styles.progressLabel}>{progressPct}% eaten</Text>
-      </View>
-
       {isLuteal && (
         <View style={styles.lutealBadge}>
+          <Moon size={13} color={tokens.luteal} strokeWidth={2} />
           <Text style={styles.lutealText}>
-            Luteal {lutealLabel ? lutealLabel : ''}
+            Luteal{lutealLabel ? ` · ${lutealLabel}` : ''}
           </Text>
         </View>
       )}
 
-      <View style={styles.stats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{consumed}</Text>
-          <Text style={styles.statKey}>eaten</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{target}</Text>
-          <Text style={styles.statKey}>target</Text>
+      <View style={styles.ringPos}>
+        <Canvas style={{ width: RING_SIZE, height: RING_SIZE }}>
+          <Path
+            path={circlePath}
+            style="stroke"
+            strokeWidth={STROKE}
+            strokeCap="round"
+            color={tokens.track}
+          />
+          <Path
+            path={circlePath}
+            style="stroke"
+            strokeWidth={STROKE}
+            strokeCap="round"
+            color={color}
+            start={0}
+            end={progress}
+          />
+        </Canvas>
+
+        <View
+          style={styles.ringCenter}
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={a11yLabel}
+        >
+          <Text style={[styles.ringNumber, { color }]}>
+            {fmt(Math.max(0, remaining))}
+          </Text>
+          <Text style={styles.ringLabel}>cal still needed</Text>
+          <Text style={styles.ringPct}>
+            {progressPct}% of {fmt(target)} eaten
+          </Text>
+          {isFreshStart && (
+            <Text style={styles.freshStart}>Fresh start. Let's fuel up.</Text>
+          )}
         </View>
       </View>
+
+      <View style={styles.stats}>
+        <Stat label="eaten" value={fmt(consumed)} />
+        <Stat label="target" value={fmt(target)} />
+        {burned != null && <Stat label="burned" value={fmt(burned)} />}
+      </View>
+    </View>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }): React.ReactElement {
+  return (
+    <View style={styles.statItem}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statKey}>{label}</Text>
     </View>
   );
 }
@@ -77,56 +163,78 @@ export function CalorieRing({
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
-    marginVertical: 16,
   },
-  ring: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    borderWidth: 10,
+  lutealBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: tokens.lutealBg,
+    borderRadius: radius.badge,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    marginBottom: space.md,
+  },
+  lutealText: {
+    fontFamily: font.bodyBold,
+    fontSize: type.caption,
+    color: tokens.luteal,
+  },
+  ringPos: {
+    width: RING_SIZE,
+    height: RING_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  remainingNumber: {
-    fontSize: 36,
-    fontWeight: '700',
+  ringCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-  remainingLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+  ringNumber: {
+    fontFamily: font.displayBold,
+    fontSize: type.ringNumber,
+    lineHeight: type.ringNumber + 2,
+    letterSpacing: -1.5,
+  },
+  ringLabel: {
+    fontFamily: font.body,
+    fontSize: type.label,
+    color: tokens.inkMuted,
+    marginTop: 4,
+  },
+  ringPct: {
+    fontFamily: font.numeric,
+    fontSize: type.caption,
+    color: tokens.inkFaint,
     marginTop: 2,
   },
-  progressLabel: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  lutealBadge: {
-    marginTop: 8,
-    backgroundColor: '#FDF2F8',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  lutealText: {
-    fontSize: 12,
-    color: '#BE185D',
-    fontWeight: '500',
+  freshStart: {
+    fontFamily: font.body,
+    fontSize: type.label,
+    color: tokens.accent,
+    marginTop: 6,
+    textAlign: 'center',
   },
   stats: {
     flexDirection: 'row',
-    gap: 32,
-    marginTop: 12,
+    gap: space.xl,
+    marginTop: space.md,
   },
   statItem: {
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontFamily: font.display,
+    fontSize: type.statValue,
+    color: tokens.ink,
   },
   statKey: {
-    fontSize: 11,
-    color: '#9CA3AF',
+    fontFamily: font.body,
+    fontSize: 10,
+    color: tokens.inkFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 1,
   },
 });

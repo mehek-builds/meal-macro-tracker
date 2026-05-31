@@ -1,11 +1,15 @@
 // ============================================================
-// ExerciseLog - Section 5 (exercise section on dashboard)
-// Shows active calories burned + workout list.
+// ExerciseLog - exercise summary card (PRD Section 5.6).
+// White card (no green island). Active calories + workout list.
+// Empty state offers a warm "Connect Apple Watch" CTA and a manual
+// log option instead of a cold message (PRD Section 7).
 // ============================================================
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { WorkoutEntry } from '@/types';
+import { Activity } from '@/theme/icons';
+import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
 interface ExerciseLogProps {
   activeCaloriesBurned: number;
@@ -16,15 +20,24 @@ export function ExerciseLog({ activeCaloriesBurned, workouts }: ExerciseLogProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Exercise</Text>
+        <View style={styles.titleRow}>
+          <Activity size={16} color={tokens.accent} strokeWidth={2} />
+          <Text style={styles.title}>Exercise</Text>
+        </View>
         <Text style={styles.calBurned}>{activeCaloriesBurned} cal burned</Text>
       </View>
 
       {workouts.length === 0 ? (
-        <Text style={styles.empty}>
-          No workouts logged today. Apple Watch workouts sync automatically via HealthKit.
-          {/* TODO(Section 9.5) - manual workout entry fallback */}
-        </Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.empty}>No workouts logged yet today.</Text>
+          <TouchableOpacity style={styles.connectBtn} activeOpacity={0.7} accessibilityRole="button">
+            <Activity size={15} color={tokens.accent} strokeWidth={2} />
+            <Text style={styles.connectText}>Connect Apple Watch</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.manualBtn} activeOpacity={0.7} accessibilityRole="button">
+            <Text style={styles.manualText}>Log workout manually</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         workouts.map((w) => (
           <View key={w.id} style={styles.workoutRow}>
@@ -34,73 +47,103 @@ export function ExerciseLog({ activeCaloriesBurned, workouts }: ExerciseLogProps
                 {w.durationMinutes} min
                 {w.avgHeartRate != null ? ` · ${w.avgHeartRate} bpm avg` : ''}
                 {' · '}
-                <Text style={styles.source}>{w.source === 'apple_watch' ? 'Apple Watch' : w.source === 'manual' ? 'Manual' : 'iPhone'}</Text>
+                {w.source === 'apple_watch' ? 'Apple Watch' : w.source === 'manual' ? 'Manual' : 'iPhone'}
               </Text>
             </View>
             <Text style={styles.workoutCal}>{w.caloriesBurned} cal</Text>
           </View>
         ))
       )}
-
-      {/* TODO(Section 9.5) - "Log workout manually" button */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    padding: 14,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-    marginVertical: 6,
+    backgroundColor: tokens.surface,
+    borderRadius: radius.card,
+    padding: space.md,
+    ...shadow.card,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#14532D',
+    fontFamily: font.bodyBold,
+    fontSize: type.body,
+    color: tokens.ink,
   },
   calBurned: {
-    fontSize: 14,
-    color: '#16A34A',
-    fontWeight: '500',
+    fontFamily: font.numeric,
+    fontSize: 13,
+    color: tokens.inkMuted,
+  },
+  emptyWrap: {
+    gap: 10,
   },
   empty: {
+    fontFamily: font.body,
     fontSize: 13,
-    color: '#6B7280',
+    color: tokens.inkMuted,
+  },
+  connectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: tokens.accentSoft,
+    borderRadius: radius.chip,
+    paddingHorizontal: 14,
+    minHeight: 44,
+  },
+  connectText: {
+    fontFamily: font.bodyBold,
+    fontSize: 13,
+    color: tokens.accent,
+  },
+  manualBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  manualText: {
+    fontFamily: font.bodyBold,
+    fontSize: 13,
+    color: tokens.accent,
   },
   workoutRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#DCFCE7',
+    borderTopColor: tokens.border,
   },
   workoutInfo: {
     flex: 1,
   },
   workoutType: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    fontFamily: font.body,
+    fontSize: type.body,
+    color: tokens.ink,
   },
   workoutMeta: {
+    fontFamily: font.body,
     fontSize: 12,
-    color: '#6B7280',
+    color: tokens.inkFaint,
     marginTop: 2,
   },
-  source: {
-    color: '#9CA3AF',
-  },
   workoutCal: {
+    fontFamily: font.numeric,
     fontSize: 13,
-    color: '#374151',
-    fontWeight: '500',
+    color: tokens.inkMuted,
   },
 });
