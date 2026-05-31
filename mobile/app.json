@@ -17,7 +17,11 @@
       "bundleIdentifier": "com.mehek.fitnesstracker",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to scan food photos and barcodes for nutrition logging.",
-        "NSHealthShareUsageDescription": "Reads workouts, active calories, steps, weight, and cycle data from Apple Health to auto-fill your daily exercise and calorie log."
+        "NSHealthShareUsageDescription": "Reads workouts, active calories, steps, weight, and cycle data from Apple Health to auto-fill your daily exercise and calorie log.",
+        "NSHealthUpdateUsageDescription": "Writes your logged body weight and water intake to Apple Health so the Health app stays in sync."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true
       }
     },
     "android": {
