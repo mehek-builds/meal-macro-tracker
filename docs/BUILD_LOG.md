@@ -2,9 +2,9 @@
 
 **Project:** Personal AI nutrition / exercise / hydration tracker (surplus-first; muscle-gain + 2027 marathon goals), scaffolded from a 1,748-line PRD.
 **Repo:** https://github.com/mehek-builds/fitness-tracker
-**Last updated:** 2026-05-31 (main @ `a120eec`)
+**Last updated:** 2026-05-31 (main @ `c1e6bf6`)
 
-> Living document. Append a dated entry to the Change Log and update the commit-arc table on each significant build change.
+> Living document, mirrored in the repo (docs/BUILD_LOG.md) and the notes vault. Append a dated entry to the Change Log and update the commit-arc table on each significant build change.
 
 ---
 
@@ -35,6 +35,8 @@
 ## 4. Commit arc
 
 ```
+c1e6bf6  Fix re-review: camelCase net-cal result + LOW polish
+ec5168f  Add build-process and decision log (this file)
 a120eec  App icon/splash assets (resolve app.json refs)
 42a013d  iOS native project (expo prebuild); run:ios/run:android
 abc417a  expo-dev-client + sorted deps
@@ -52,7 +54,7 @@ d8d1b56  Align mobile types/client to backend contract
 
 ## 5. Current state
 
-Repo clean, local = remote. Backend: 252 tests passing. All requested work and all autonomous-session output committed.
+Repo clean, local = remote. Backend: 252 tests passing; mobile `tsc --noEmit` clean (type-verified). All requested work and reviewed autonomous-session output committed.
 
 ## 6. Standing caveats (cannot close from the build environment)
 
@@ -71,3 +73,4 @@ Repo clean, local = remote. Backend: 252 tests passing. All requested work and a
 ## 8. Change log
 
 - **2026-05-31** - Initial scaffold through iOS prebuild and the "Nourish" design system. Backend at 252 passing tests; main at `a120eec`. See the commit arc above for the full sequence.
+- **2026-05-31** - Re-ran tester + reviewer. Tester confirmed mobile `tsc --noEmit` is clean (first compile-verification of the design-system + contract types). Reviewer found 0 criticals; 1 HIGH (the exercise net-calorie result leaked snake_case keys) fixed by modeling it as a `NetCalorieResult` CamelModel; plus LOW polish (CalorieRing morning-rule threshold, a `needs_recalc` wiring note, Settings now persists net-calorie-mode to the backend). Commit `c1e6bf6`.
