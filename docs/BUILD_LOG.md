@@ -2,7 +2,7 @@
 
 **Project:** Personal AI nutrition / exercise / hydration tracker (surplus-first; muscle-gain + 2027 marathon goals), scaffolded from a 1,748-line PRD.
 **Repo:** https://github.com/mehek-builds/fitness-tracker
-**Last updated:** 2026-05-31 (main @ `c1e6bf6`)
+**Last updated:** 2026-05-31 (main @ `e875f55`)
 
 > Living document, mirrored in the repo (docs/BUILD_LOG.md) and the notes vault. Append a dated entry to the Change Log and update the commit-arc table on each significant build change.
 
@@ -35,6 +35,12 @@
 ## 4. Commit arc
 
 ```
+e875f55  Wire confirmed scan items into the food log
+454ebd2  HealthKit entitlement + write usage string
+394c95e  Lower default calorie surplus to 300 (match PRD table)
+f77c98d  Persist Zustand store to MMKV
+c3170b8  Drop expo-dev-client; redesign onboarding; ring autosize
+63411ee  Log the re-review round in BUILD_LOG
 c1e6bf6  Fix re-review: camelCase net-cal result + LOW polish
 ec5168f  Add build-process and decision log (this file)
 a120eec  App icon/splash assets (resolve app.json refs)
@@ -74,3 +80,4 @@ Repo clean, local = remote. Backend: 252 tests passing; mobile `tsc --noEmit` cl
 
 - **2026-05-31** - Initial scaffold through iOS prebuild and the "Nourish" design system. Backend at 252 passing tests; main at `a120eec`. See the commit arc above for the full sequence.
 - **2026-05-31** - Re-ran tester + reviewer. Tester confirmed mobile `tsc --noEmit` is clean (first compile-verification of the design-system + contract types). Reviewer found 0 criticals; 1 HIGH (the exercise net-calorie result leaked snake_case keys) fixed by modeling it as a `NetCalorieResult` CamelModel; plus LOW polish (CalorieRing morning-rule threshold, a `needs_recalc` wiring note, Settings now persists net-calorie-mode to the backend). Commit `c1e6bf6`.
+- **2026-05-31** - Chased the autonomous design/native session to completion, committing each settled wave after a tsc / JSON / no-junk check: MMKV store persistence, expo-dev-client removed, onboarding redesign, ring autosize, and scan-to-log wiring. Then the agreed follow-ups: lowered the default calorie surplus to 300 so targets match the PRD table (`394c95e`), added the HealthKit entitlement + write usage string for App Store compliance (`454ebd2`), and brought this log current. Backend 252 green and mobile tsc clean throughout. main at `e875f55`.
