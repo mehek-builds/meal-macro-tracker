@@ -4,6 +4,8 @@
 // ============================================================
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { MMKV } from 'react-native-mmkv';
 import type {
   UserProfile,
   Targets,
@@ -13,6 +15,16 @@ import type {
   CycleState,
   NetCalorieMode,
 } from '@/types';
+
+// --------------- Persistence (MMKV-backed) -----------------
+
+const mmkv = new MMKV();
+
+const zustandStorage = {
+  getItem: (name: string): string | null => mmkv.getString(name) ?? null,
+  setItem: (name: string, value: string): void => mmkv.set(name, value),
+  removeItem: (name: string): void => mmkv.delete(name),
+};
 
 // --------------- Mock seed data -----------------
 
@@ -113,7 +125,9 @@ interface AppState {
 
 // --------------- Store implementation -----------------
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   // Onboarding
   onboardingComplete: false,
   setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
@@ -189,4 +203,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().todayLog.reduce((sum, e) => sum + e.item.carbsG, 0),
   fatConsumedToday: () =>
     get().todayLog.reduce((sum, e) => sum + e.item.fatG, 0),
-}));
+    }),
+    {
+      name: 'fitness-tracker-store',
+      storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        onboardingComplete: state.onboardingComplete,
+        profile: state.profile,
+        targets: state.targets,
+        cycleState: state.cycleState,
+      }),
+    },
+  ),
+);
