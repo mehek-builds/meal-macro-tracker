@@ -23,6 +23,7 @@ import {
 import { SpaceGrotesk_500Medium } from '@expo-google-fonts/space-grotesk';
 
 import { useAppStore } from '@/state/useAppStore';
+import type { FoodLogEntry } from '@/types';
 import { tokens, font, radius, shadow, withAlpha } from '@/theme/tokens';
 import { Camera, House, ClipboardList, LineChart, User } from '@/theme/icons';
 
@@ -63,6 +64,7 @@ function MeTab(): React.ReactElement {
         component={SupplementsScreen}
         options={{
           title: '',
+          headerBackTitle: 'Me',
           headerShadowVisible: false,
           headerTintColor: tokens.accent,
           headerStyle: { backgroundColor: tokens.bg },
@@ -151,10 +153,23 @@ function EmptyScanRoute(): React.ReactElement {
 // --- Scan opens as a full-screen modal from the root stack ---
 function ScanModal(): React.ReactElement {
   const navigation = useNavigation<any>();
+  const addLogEntry = useAppStore((s) => s.addLogEntry);
   return (
     <ScanScreen
       onClose={() => navigation.goBack()}
-      onConfirm={() => navigation.goBack()}
+      onConfirm={(items, meal) => {
+        const date = new Date().toISOString().split('T')[0];
+        items.forEach((item, i) =>
+          addLogEntry({
+            id: `scan-${Date.now()}-${i}`,
+            date,
+            meal: meal as FoodLogEntry['meal'],
+            source: 'photo_scan',
+            item,
+          }),
+        );
+        navigation.goBack();
+      }}
     />
   );
 }
