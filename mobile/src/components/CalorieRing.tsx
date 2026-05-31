@@ -129,7 +129,7 @@ export function CalorieRing({
           accessibilityRole="text"
           accessibilityLabel={a11yLabel}
         >
-          <Text style={[styles.ringNumber, { color }]}>
+          <Text style={[styles.ringNumber, { color }]} numberOfLines={1} adjustsFontSizeToFit>
             {fmt(Math.max(0, remaining))}
           </Text>
           <Text style={styles.ringLabel}>cal still needed</Text>
@@ -189,7 +189,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    width: 170,
+    paddingHorizontal: 6,
   },
   ringNumber: {
     fontFamily: font.displayBold,
