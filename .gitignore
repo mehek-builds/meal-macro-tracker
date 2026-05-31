@@ -1,0 +1,74 @@
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+.venv/
+**/.venv/
+*.egg-info/
+build/
+dist/
+.Python
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ============================================================
+# Node / Expo / React Native
+# ============================================================
+node_modules/
+.expo/
+web-build/
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.yarn/cache
+.yarn/unplugged
+.pnp.*
+
+# ============================================================
+# Environment / secrets
+# Keep .env.example tracked - do NOT add *.example here
+# ============================================================
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+**/.env
+**/.env.local
+**/.env.production
+
+# ============================================================
+# OS junk
+# ============================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================================
+# Editor / IDE
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# Build outputs
+# ============================================================
+dist/
+*.tsbuildinfo

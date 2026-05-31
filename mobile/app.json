@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Fitness Tracker",
+    "slug": "fitness-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mehek.fitnesstracker",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan food photos and barcodes for nutrition logging.",
+        "NSHealthShareUsageDescription": "Reads workouts, active calories, steps, weight, and cycle data from Apple Health to auto-fill your daily exercise and calorie log."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.mehek.fitnesstracker",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACTIVITY_RECOGNITION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-camera"
+    ]
+  }
+}
