@@ -17,13 +17,13 @@ const MOCK_WEIGHT_LBS = 92.6; // ~42 kg
 const MOCK_WORKOUTS: WorkoutEntry[] = [
   {
     id: 'mock-workout-1',
+    date: new Date().toISOString().slice(0, 10),
     type: 'Functional Strength Training',
-    startDate: new Date().toISOString(),
-    endDate: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
     durationMinutes: 45,
     caloriesBurned: 220,
     avgHeartRate: 128,
     source: 'apple_watch',
+    notes: '',
   },
 ];
 
