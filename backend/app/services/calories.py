@@ -101,7 +101,12 @@ def needs_recalc(
     SINCE the last recalculation (PRD Section 2, "Auto-Recalculation at Every 3 kg Gained").
 
     PRD intent is "3 kg gained since last recalc", measured continuously from the
-    last recalc weight — not a fixed grid. A 1 kg gain that happens to cross a grid
+    last recalc weight, not a fixed grid. A 1 kg gain that happens to cross a grid
     line must NOT fire, and a 2.9 kg gain must NOT fire, but a full 3.0 kg gain must.
+
+    NOTE (not yet wired): this helper has no call site yet. To make the PRD's
+    "recalc prompt every 3 kg gained" behavior live, add a last_recalc_weight_kg
+    field to UserProfile and call this from the profile-update / weigh-in path.
+    TODO(Section 2): wire this trigger.
     """
     return (current_7day_avg_kg - last_recalc_weight_kg) >= step

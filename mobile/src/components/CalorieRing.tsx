@@ -63,7 +63,7 @@ export function CalorieRing({
   const color = ringColor(remaining, hour);
   const fraction = Math.min(1, consumed / Math.max(1, target));
   const progressPct = Math.round(fraction * 100);
-  const isFreshStart = consumed === 0 && hour < 12;
+  const isFreshStart = consumed === 0 && hour < 13; // align with morning rule in ringColor
 
   // Full-circle path, drawn from 12 o'clock clockwise. The progress arc is the
   // same path trimmed to `progress` (0..1).

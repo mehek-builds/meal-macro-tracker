@@ -131,7 +131,7 @@ class TestGetExerciseSummary:
     def test_summary_contains_net_calorie_result(self):
         response = client.get(f"/exercise/summary/{EXERCISE_DATE}")
         data = response.json()
-        # netCalorieResult is a raw service dict; its inner keys stay snake_case.
+        # netCalorieResult is modeled (NetCalorieResult), so its keys are camelCase.
         assert data["netCalorieResult"] is not None
         assert isinstance(data["netCalorieResult"], dict)
 
@@ -173,7 +173,7 @@ class TestSummaryUsesDerivedProfileTargets:
         assert expected_bmr_floor != 1500  # sanity: not the default
 
         result = client.get(f"/exercise/summary/{EXERCISE_DATE}").json()["netCalorieResult"]
-        assert result["bmr_floor"] == expected_bmr_floor
+        assert result["bmrFloor"] == expected_bmr_floor
 
 
 class TestDeleteExerciseEntry:

@@ -69,13 +69,28 @@ export interface WorkoutEntry {
   notes: string;
 }
 
+/** Net-calorie accounting result (PRD Section 9.7). Fields are mode-dependent:
+ *  fixed/eat_back populate target/eaten/burned/remaining (plus displayBurned in
+ *  fixed); net populates netCalories/bmrFloor/shouldEatMore/eatMoreBy. */
+export interface NetCalorieResult {
+  target?: number;
+  eaten?: number;
+  burned?: number;
+  remaining?: number;
+  displayBurned?: boolean;
+  netCalories?: number;
+  bmrFloor?: number;
+  shouldEatMore?: boolean;
+  eatMoreBy?: number;
+}
+
 /** Net-calorie summary returned by /exercise/summary/:date (Section 9.7). */
 export interface ExerciseSummary {
   date: string;
   totalActiveCalories: number;
   totalDurationMinutes: number;
   workouts: WorkoutEntry[];
-  netCalorieResult?: Record<string, unknown> | null;
+  netCalorieResult?: NetCalorieResult | null;
 }
 
 /** Modes controlling how burned calories interact with the daily budget (Section 9.4). */

@@ -12,7 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 import app.store as store
-from app.models.exercise import ExerciseSummary, WorkoutEntry
+from app.models.exercise import ExerciseSummary, NetCalorieResult, WorkoutEntry
 from app.routers.user import _derive_targets
 from app.services.met import MET_TABLE, calories_from_met
 from app.services.net_calories import calculate_net_calories
@@ -92,12 +92,14 @@ def get_summary(date: str) -> ExerciseSummary:
         mode = "fixed"
         bmr_floor = 1500
 
-    net_result = calculate_net_calories(
-        food_calories=int(food_calories),
-        active_calories=total_active,
-        base_target=base_target,
-        mode=mode,  # type: ignore[arg-type]
-        bmr_floor=bmr_floor,
+    net_result = NetCalorieResult(
+        **calculate_net_calories(
+            food_calories=int(food_calories),
+            active_calories=total_active,
+            base_target=base_target,
+            mode=mode,  # type: ignore[arg-type]
+            bmr_floor=bmr_floor,
+        )
     )
 
     return ExerciseSummary(

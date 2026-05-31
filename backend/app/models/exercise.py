@@ -20,11 +20,26 @@ class WorkoutEntry(CamelModel):
     notes: str = ""
 
 
+class NetCalorieResult(CamelModel):
+    """Net-calorie accounting (PRD Section 9.7). Fields are mode-dependent:
+    fixed/eat_back populate target/eaten/burned/remaining (plus display_burned in
+    fixed); net populates net_calories/bmr_floor/should_eat_more/eat_more_by.
+    Modeled (not a raw dict) so it serializes camelCase like the rest of the wire."""
+    target: Optional[int] = None
+    eaten: Optional[int] = None
+    burned: Optional[int] = None
+    remaining: Optional[int] = None
+    display_burned: Optional[bool] = None
+    net_calories: Optional[int] = None
+    bmr_floor: Optional[int] = None
+    should_eat_more: Optional[bool] = None
+    eat_more_by: Optional[int] = None
+
+
 class ExerciseSummary(CamelModel):
     date: str
     total_active_calories: int
     total_duration_minutes: int
     workouts: list[WorkoutEntry]
-    # Net calorie calculation result (PRD Section 9.7). This is a raw service dict
-    # whose internal keys (snake_case) are NOT alias-transformed by pydantic.
-    net_calorie_result: Optional[dict] = None
+    # Net-calorie result (PRD Section 9.7), modeled so it serializes camelCase.
+    net_calorie_result: Optional[NetCalorieResult] = None

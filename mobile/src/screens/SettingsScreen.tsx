@@ -16,6 +16,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '@/state/useAppStore';
 import type { NetCalorieMode, TrainingMode } from '@/types';
+import { setNetCalorieMode as persistNetCalorieMode } from '@/api/endpoints';
 import { Pill } from '@/theme/icons';
 import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
@@ -110,7 +111,12 @@ export function SettingsScreen(): React.ReactElement {
             { value: 'net', label: 'Net' },
           ]}
           selected={profile.netCalorieMode}
-          onSelect={(mode) => setNetCalorieMode(mode)}
+          onSelect={(mode) => {
+            setNetCalorieMode(mode);
+            void persistNetCalorieMode(mode).catch((err) =>
+              console.warn('Could not persist net-calorie mode to backend:', err),
+            );
+          }}
         />
 
         {/* Training Mode */}
