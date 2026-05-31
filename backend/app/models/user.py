@@ -30,7 +30,7 @@ class UserProfile(CamelModel):
     activity_level: str = "lightly_active"
     net_calorie_mode: NetCalorieMode = NetCalorieMode.fixed
     # Macro surplus for build_muscle goal (PRD Section 2)
-    calorie_surplus: int = 400
+    calorie_surplus: int = 300
     water_goal_oz: Optional[float] = None  # user-override; None = auto from service
     dietary_restrictions: list[str] = []
     allergies: list[str] = []

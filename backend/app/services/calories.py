@@ -46,13 +46,14 @@ def tdee(bmr_value: float, activity_key: str) -> float:
 def daily_calorie_target(
     tdee_value: float,
     goal: str,
-    surplus: int = 400,
+    surplus: int = 300,
 ) -> int:
     """
     Daily calorie target by goal (PRD Section 2).
 
     goal values: "build_muscle" | "maintain" | "lose"
-    surplus applies only to build_muscle (default 400 cal; PRD range 300-500).
+    surplus applies only to build_muscle (default 300 cal, the PRD lean-gain low
+    end that lands the example targets in the PRD table; PRD range 300-500).
     """
     if goal == "build_muscle":
         return round(tdee_value + surplus)

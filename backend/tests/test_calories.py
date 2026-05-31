@@ -56,7 +56,7 @@ class TestTDEE:
 class TestDailyCalorieTarget:
     def test_build_muscle_default_surplus(self):
         result = daily_calorie_target(2000.0, "build_muscle")
-        assert result == 2400
+        assert result == 2300
 
     def test_build_muscle_custom_surplus(self):
         result = daily_calorie_target(2000.0, "build_muscle", surplus=300)
@@ -75,16 +75,14 @@ class TestDailyCalorieTarget:
     def test_prd_example_42kg_lightly_active(self):
         """
         PRD Section 2 example: 42kg female, lightly active, build_muscle.
-        PRD prose says ~1850-1950; the formula (Mifflin-St Jeor + 1.375 + 400 surplus)
-        yields 2019 — within a ±200 cal band of the stated range, which is acceptable
-        given PRD uses rounded illustrative numbers.  The assertion checks the formula
-        is arithmetically correct, not that it matches the prose exactly.
+        With the default +300 surplus (the PRD lean-gain low end), the target lands
+        inside the PRD's stated 1,850-1,950 range.
         """
         b = bmr("female", 42, 163, 20)
         t = tdee(b, "lightly_active")
-        target = daily_calorie_target(t, "build_muscle", surplus=400)
-        # Formula result: BMR=1177.75, TDEE=1619.41, target=2019
-        assert 1800 <= target <= 2200
+        target = daily_calorie_target(t, "build_muscle")  # default surplus now 300
+        # BMR=1177.75, TDEE=1619.41, target=1919
+        assert 1850 <= target <= 1950
 
 
 class TestMacroTargets:

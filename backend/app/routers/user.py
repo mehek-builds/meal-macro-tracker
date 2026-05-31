@@ -65,7 +65,7 @@ def _derive_targets(profile: dict) -> Targets:
     )
     tdee_val = calc_tdee(bmr_val, profile["activity_level"])
     cal_target = daily_calorie_target(
-        tdee_val, profile["goal"], surplus=profile.get("calorie_surplus", 400)
+        tdee_val, profile["goal"], surplus=profile.get("calorie_surplus", 300)
     )
     macros = macro_targets(profile["weight_kg"], cal_target)
 
