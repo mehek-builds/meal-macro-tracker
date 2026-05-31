@@ -23,6 +23,8 @@ const MOCK_PROFILE: UserProfile = {
   heightCm: 163,
   weightKg: 42,
   goal: 'build_muscle',
+  targetWeightKg: 57,
+  milestoneWeightKg: 45,
   activityLevel: 'lightly_active',
   trainingPhase: 'phase_1',
   netCalorieMode: 'fixed',

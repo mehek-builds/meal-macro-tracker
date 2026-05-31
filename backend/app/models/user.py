@@ -23,6 +23,10 @@ class UserProfile(CamelModel):
     height_cm: float = 163.0
     weight_kg: float = 42.0
     goal: str = "build_muscle"  # build_muscle | maintain | lose
+    # Goal weights (PRD Section 6 onboarding screen 4): long-term target +
+    # near-term milestone. Seeded with the PRD's 57 kg target / 45 kg milestone.
+    target_weight_kg: Optional[float] = 57.0
+    milestone_weight_kg: Optional[float] = 45.0
     activity_level: str = "lightly_active"
     net_calorie_mode: NetCalorieMode = NetCalorieMode.fixed
     # Macro surplus for build_muscle goal (PRD Section 2)

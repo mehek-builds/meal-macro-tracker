@@ -209,6 +209,8 @@ export interface UserProfile {
   heightCm: number;
   weightKg: number;
   goal: 'build_muscle' | 'maintain' | 'lose';
+  targetWeightKg?: number | null;     // long-term goal weight (PRD Section 6)
+  milestoneWeightKg?: number | null;  // near-term milestone weight (PRD Section 6)
   activityLevel: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'athlete';
   netCalorieMode: NetCalorieMode;
   calorieSurplus: number;

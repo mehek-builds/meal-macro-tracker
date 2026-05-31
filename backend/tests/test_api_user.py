@@ -101,6 +101,23 @@ class TestUpdateProfile:
         assert target_after > target_before
 
 
+class TestGoalWeights:
+    """Target + milestone weight round-trip on the profile (PRD Section 6)."""
+
+    def test_default_profile_has_seeded_goal_weights(self):
+        profile = client.get("/user/profile").json()["profile"]
+        assert profile["targetWeightKg"] == 57.0
+        assert profile["milestoneWeightKg"] == 45.0
+
+    def test_goal_weights_round_trip(self):
+        client.get("/user/profile")
+        payload = {**PROFILE_PAYLOAD, "target_weight_kg": 60.0, "milestone_weight_kg": 48.0}
+        response = client.put("/user/profile", json=payload)
+        profile = response.json()["profile"]
+        assert profile["targetWeightKg"] == 60.0
+        assert profile["milestoneWeightKg"] == 48.0
+
+
 class TestSetNetCalorieMode:
     def test_set_mode_returns_200(self):
         client.get("/user/profile")
