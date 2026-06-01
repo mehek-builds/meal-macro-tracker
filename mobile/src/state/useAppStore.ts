@@ -14,6 +14,7 @@ import type {
   WaterSummary,
   CycleState,
   NetCalorieMode,
+  BloodworkResult,
 } from '@/types';
 
 // --------------- Persistence (MMKV-backed) -----------------
@@ -86,6 +87,50 @@ const DEFAULT_CYCLE_STATE: CycleState = {
   lutealProteinBonus: 0,
 };
 
+// REAL lab results (not mock) — Mehek's 29 May 2026 panel, King's College
+// Hospital Dubai. Seeds the bloodwork log with her confirmed deficiencies so
+// the app has them to reference; editable/extendable via the store going forward.
+const REAL_BLOODWORK: BloodworkResult[] = [
+  {
+    id: 'bw-vitd-2026-05-29',
+    date: '2026-05-29',
+    markerName: 'Vitamin D (25-OH)',
+    value: 29.2,
+    unit: 'ng/mL',
+    refRangeLow: 30,
+    refRangeHigh: 100,
+    status: 'low',
+    retestDate: '2026-07-15',
+    notes:
+      'Insufficient (target 40-60). On 10,000 IU D3/day correction dose; drop to 2,000-4,000 IU once at 40-60.',
+  },
+  {
+    id: 'bw-ferritin-2026-05-29',
+    date: '2026-05-29',
+    markerName: 'Ferritin',
+    value: 32,
+    unit: 'ng/mL',
+    refRangeLow: 15,
+    refRangeHigh: 150,
+    status: 'low',
+    retestDate: '2026-08-01',
+    notes:
+      'Stage 1 iron depletion (~26 with lab calibration). Athlete target >40. On Eiron CR 60mg/day + vitamin C.',
+  },
+  {
+    id: 'bw-rdw-2026-05-29',
+    date: '2026-05-29',
+    markerName: 'RDW',
+    value: 11.6,
+    unit: '%',
+    refRangeLow: 12.3,
+    refRangeHigh: 15.4,
+    status: 'low',
+    retestDate: null,
+    notes: 'Flagged low. Rest of CBC clean — no anemia.',
+  },
+];
+
 // --------------- Store shape -----------------
 
 interface AppState {
@@ -114,6 +159,11 @@ interface AppState {
   // Cycle state
   cycleState: CycleState;
   setCycleState: (state: CycleState) => void;
+
+  // Bloodwork results (seeded with the user's real panel; persisted)
+  bloodwork: BloodworkResult[];
+  addBloodworkResult: (result: BloodworkResult) => void;
+  removeBloodworkResult: (id: string) => void;
 
   // Supplements (daily checklist; resets each calendar day)
   supplementsTaken: { date: string; ids: string[] };
@@ -196,6 +246,13 @@ export const useAppStore = create<AppState>()(
   cycleState: DEFAULT_CYCLE_STATE,
   setCycleState: (cycleState) => set({ cycleState }),
 
+  // Bloodwork — seeded with the user's real panel; newest first.
+  bloodwork: REAL_BLOODWORK,
+  addBloodworkResult: (result) =>
+    set((state) => ({ bloodwork: [result, ...state.bloodwork] })),
+  removeBloodworkResult: (id) =>
+    set((state) => ({ bloodwork: state.bloodwork.filter((b) => b.id !== id) })),
+
   // Supplements
   supplementsTaken: { date: '', ids: [] },
   supplementRemindersOn: false,
@@ -240,6 +297,7 @@ export const useAppStore = create<AppState>()(
         profile: state.profile,
         targets: state.targets,
         cycleState: state.cycleState,
+        bloodwork: state.bloodwork,
         supplementsTaken: state.supplementsTaken,
         supplementRemindersOn: state.supplementRemindersOn,
       }),

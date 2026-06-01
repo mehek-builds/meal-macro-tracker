@@ -13,16 +13,16 @@ import {
   SafeAreaView,
 } from 'react-native';
 import type { BodyMeasurement, BloodworkResult } from '@/types';
+import { useAppStore } from '@/state/useAppStore';
 import { LineChart } from '@/theme/icons';
 import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
 type ProgressTab = 'measurements' | 'bloodwork' | 'water';
 
-// Real data only. These populate from what the user logs; measurement /
-// bloodwork entry and persisted water history are not yet wired, so they start
-// empty and the sections render honest empty states until real data exists.
+// Real data only. Bloodwork reads from the store (seeded with the user's real
+// panel). Measurement entry and persisted water history are not yet wired, so
+// they start empty and render honest empty states until real data exists.
 const MEASUREMENTS: BodyMeasurement[] = [];
-const BLOODWORK: BloodworkResult[] = [];
 const WEEKLY_WATER: { day: string; oz: number; goalMet: boolean }[] = [];
 
 // ---------- shared ----------
@@ -90,14 +90,15 @@ function statusColor(status: BloodworkResult['status']): string {
 }
 
 function BloodworkSection(): React.ReactElement {
+  const bloodwork = useAppStore((s) => s.bloodwork);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Bloodwork</Text>
       <Text style={styles.sectionHint}>Results and upcoming retests.</Text>
-      {BLOODWORK.length === 0 ? (
+      {bloodwork.length === 0 ? (
         <EmptyState title="No results yet. Add your last panel." />
       ) : (
-        BLOODWORK.map((b) => (
+        bloodwork.map((b) => (
           <View key={b.id} style={styles.card}>
             <View style={styles.bloodHeader}>
               <Text style={styles.markerName}>{b.markerName}</Text>
