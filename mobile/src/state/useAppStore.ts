@@ -112,6 +112,13 @@ interface AppState {
   cycleState: CycleState;
   setCycleState: (state: CycleState) => void;
 
+  // Supplements (daily checklist; resets each calendar day)
+  supplementsTaken: { date: string; ids: string[] };
+  supplementRemindersOn: boolean;
+  toggleSupplementTaken: (id: string) => void;
+  takenSupplementIdsToday: () => string[];
+  setSupplementRemindersOn: (on: boolean) => void;
+
   // Settings helpers
   setNetCalorieMode: (mode: NetCalorieMode) => void;
 
@@ -186,6 +193,24 @@ export const useAppStore = create<AppState>()(
   cycleState: MOCK_CYCLE_STATE,
   setCycleState: (cycleState) => set({ cycleState }),
 
+  // Supplements
+  supplementsTaken: { date: '', ids: [] },
+  supplementRemindersOn: false,
+  toggleSupplementTaken: (id) =>
+    set((state) => {
+      const today = new Date().toISOString().slice(0, 10);
+      // Start fresh on a new calendar day.
+      const ids = state.supplementsTaken.date === today ? state.supplementsTaken.ids : [];
+      const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+      return { supplementsTaken: { date: today, ids: next } };
+    }),
+  takenSupplementIdsToday: () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const s = get().supplementsTaken;
+    return s.date === today ? s.ids : [];
+  },
+  setSupplementRemindersOn: (on) => set({ supplementRemindersOn: on }),
+
   // Settings
   setNetCalorieMode: (mode) =>
     set((state) => ({
@@ -212,6 +237,8 @@ export const useAppStore = create<AppState>()(
         profile: state.profile,
         targets: state.targets,
         cycleState: state.cycleState,
+        supplementsTaken: state.supplementsTaken,
+        supplementRemindersOn: state.supplementRemindersOn,
       }),
     },
   ),

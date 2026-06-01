@@ -8,7 +8,7 @@ export {
   // Tab bar
   Camera, House, ClipboardList, LineChart, User,
   // Component glyphs
-  Plus, ChevronUp, ChevronDown, Droplet, Activity, Pill,
+  Plus, ChevronUp, ChevronDown, Droplet, Activity, Pill, Check, Bell, BellOff,
   // Chrome
   X, Moon,
 } from 'lucide-react-native';

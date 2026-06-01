@@ -11,14 +11,19 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import type { FoodLogEntry, WorkoutEntry, CycleState } from '@/types';
 import { useAppStore } from '@/state/useAppStore';
 import { syncHealthKitForDay } from '@/health/healthkit';
 import { getCycleState } from '@/health/cycle';
+import {
+  scheduleSupplementReminders,
+  cancelSupplementReminders,
+} from '@/notifications/supplementReminders';
 import { CalorieRing } from '@/components/CalorieRing';
 import { MacroBars } from '@/components/MacroBars';
-import { MicronutrientRow } from '@/components/MicronutrientRow';
+import { SupplementChecklist } from '@/components/SupplementChecklist';
 import { MealSection } from '@/components/MealSection';
 import { WaterTracker } from '@/components/WaterTracker';
 import { ExerciseLog } from '@/components/ExerciseLog';
@@ -39,20 +44,6 @@ function groupByMeal(entries: FoodLogEntry[]) {
   };
 }
 
-/** Sum micronutrients actually consumed today from logged items (USDA fills
- *  ironMg/calciumMg/etc. on each scan). Returns zeros when nothing is tracked. */
-function sumMicros(entries: FoodLogEntry[]) {
-  return entries.reduce(
-    (a, e) => ({
-      iron: a.iron + (e.item.ironMg ?? 0),
-      calcium: a.calcium + (e.item.calciumMg ?? 0),
-      magnesium: a.magnesium + (e.item.magnesiumMg ?? 0),
-      zinc: a.zinc + (e.item.zincMg ?? 0),
-    }),
-    { iron: 0, calcium: 0, magnesium: 0, zinc: 0 },
-  );
-}
-
 function SectionLabel({ children }: { children: string }): React.ReactElement {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
@@ -67,6 +58,11 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   const proteinConsumed = useAppStore((s) => s.proteinConsumedToday)();
   const carbsConsumed = useAppStore((s) => s.carbsConsumedToday)();
   const fatConsumed = useAppStore((s) => s.fatConsumedToday)();
+  // Subscribe to the raw supplement state so toggling re-renders the checklist.
+  const supplementsTaken = useAppStore((s) => s.supplementsTaken);
+  const toggleSupplementTaken = useAppStore((s) => s.toggleSupplementTaken);
+  const supplementRemindersOn = useAppStore((s) => s.supplementRemindersOn);
+  const setSupplementRemindersOn = useAppStore((s) => s.setSupplementRemindersOn);
 
   // Real Apple Health data for today (active calories + workouts). Null until synced.
   const [activeCalories, setActiveCalories] = useState(0);
@@ -106,7 +102,9 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   }, [syncHealth]);
 
   const meals = groupByMeal(todayLog);
-  const micros = sumMicros(todayLog);
+  const today = new Date().toISOString().slice(0, 10);
+  const takenSupplementIds =
+    supplementsTaken.date === today ? supplementsTaken.ids : [];
 
   // Prefer the live HealthKit-derived cycle (from Apple Health / Clue) over the
   // store's backend value when available.
@@ -115,6 +113,26 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   const lutealLabel = isLuteal
     ? `+${effectiveCycle.lutealCalorieBonus} cal, +${effectiveCycle.lutealProteinBonus}g protein`
     : undefined;
+
+  const handleToggleReminders = useCallback(async (): Promise<void> => {
+    try {
+      if (supplementRemindersOn) {
+        await cancelSupplementReminders();
+        setSupplementRemindersOn(false);
+        return;
+      }
+      const granted = await scheduleSupplementReminders();
+      setSupplementRemindersOn(granted);
+      if (!granted) {
+        Alert.alert(
+          'Reminders need notifications',
+          'Turn on notifications for Fitness Tracker in Settings to get supplement reminders.',
+        );
+      }
+    } catch {
+      Alert.alert('Could not set reminders', 'Please try again in a moment.');
+    }
+  }, [supplementRemindersOn, setSupplementRemindersOn]);
 
   const handleAddWater = (oz: number): void => {
     addWaterEntry({
@@ -162,15 +180,12 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
           fat={{ consumed: fatConsumed, target: targets.fatG }}
         />
 
-        <View style={styles.block}>
-          <SectionLabel>Micronutrients</SectionLabel>
-          <MicronutrientRow
-            iron_mg={Math.round(micros.iron * 10) / 10}
-            calcium_mg={Math.round(micros.calcium)}
-            magnesium_mg={Math.round(micros.magnesium)}
-            zinc_mg={Math.round(micros.zinc * 10) / 10}
-          />
-        </View>
+        <SupplementChecklist
+          takenIds={takenSupplementIds}
+          onToggle={toggleSupplementTaken}
+          remindersOn={supplementRemindersOn}
+          onToggleReminders={handleToggleReminders}
+        />
 
         <View style={styles.mealsBlock}>
           <SectionLabel>Today's meals</SectionLabel>
