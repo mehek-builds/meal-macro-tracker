@@ -39,13 +39,19 @@ function isLinked(): boolean {
   );
 }
 
-/** Whole calendar days from a to b (b - a), floored. */
+/** Whole calendar days between a and b in LOCAL time (b - a). */
 function daysBetween(a: Date, b: Date): number {
-  return Math.floor((b.getTime() - a.getTime()) / 86_400_000);
+  const a0 = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const b0 = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((b0.getTime() - a0.getTime()) / 86_400_000);
 }
 
+/** Local YYYY-MM-DD. Avoids toISOString()'s UTC shift, which moved a local
+ *  midnight sample to the previous day for users east of UTC (e.g. +0400). */
 function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
 /** Read menstrual-flow samples for the last ~180 days, oldest first. */
