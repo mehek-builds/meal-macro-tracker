@@ -14,9 +14,21 @@ import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 interface ExerciseLogProps {
   activeCaloriesBurned: number;
   workouts: WorkoutEntry[];
+  /** Trigger an Apple Health sync (request permissions + read today's data). */
+  onConnectAppleWatch?: () => void;
+  /** True while a HealthKit read is in flight. */
+  syncing?: boolean;
+  /** Non-null when the last sync failed (e.g. permission denied). */
+  errorText?: string | null;
 }
 
-export function ExerciseLog({ activeCaloriesBurned, workouts }: ExerciseLogProps): React.ReactElement {
+export function ExerciseLog({
+  activeCaloriesBurned,
+  workouts,
+  onConnectAppleWatch,
+  syncing = false,
+  errorText = null,
+}: ExerciseLogProps): React.ReactElement {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -30,10 +42,19 @@ export function ExerciseLog({ activeCaloriesBurned, workouts }: ExerciseLogProps
       {workouts.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Text style={styles.empty}>No workouts logged yet today.</Text>
-          <TouchableOpacity style={styles.connectBtn} activeOpacity={0.7} accessibilityRole="button">
+          <TouchableOpacity
+            style={styles.connectBtn}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            disabled={syncing}
+            onPress={onConnectAppleWatch}
+          >
             <Activity size={15} color={tokens.accent} strokeWidth={2} />
-            <Text style={styles.connectText}>Connect Apple Watch</Text>
+            <Text style={styles.connectText}>
+              {syncing ? 'Syncing with Apple Health…' : 'Connect Apple Watch'}
+            </Text>
           </TouchableOpacity>
+          {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
           <TouchableOpacity style={styles.manualBtn} activeOpacity={0.7} accessibilityRole="button">
             <Text style={styles.manualText}>Log workout manually</Text>
           </TouchableOpacity>
@@ -93,6 +114,12 @@ const styles = StyleSheet.create({
     fontFamily: font.body,
     fontSize: 13,
     color: tokens.inkMuted,
+  },
+  errorText: {
+    fontFamily: font.body,
+    fontSize: 12,
+    color: tokens.stateUnder,
+    textAlign: 'center',
   },
   connectBtn: {
     flexDirection: 'row',

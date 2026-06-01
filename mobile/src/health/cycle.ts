@@ -1,36 +1,26 @@
 // ============================================================
-// Cycle state stub - Section 11
-// getCycleState() reads menstrual flow samples from HealthKit.
-// Returns a mock CycleState in this stub until react-native-health
-// is linked in a bare/native build.
+// Cycle state - Section 11
+//
+// IMPORTANT: react-native-health (v1.18) exposes NO menstrual-flow read API —
+// HKCategoryTypeIdentifierMenstrualFlow is not in its Permissions enum and there
+// is no getMenstrualFlowSamples method. So cycle/period data (including anything
+// Clue writes to Apple Health) cannot be read through this library.
+//
+// The app's real cycle state therefore comes from manual entry via the backend
+// (POST /cycle/manual -> GET /cycle/state), surfaced through the Zustand store.
+// This module returns an "unknown" state so callers degrade gracefully; it does
+// NOT read HealthKit. To read menstrual flow natively you'd need a HealthKit lib
+// that supports category samples (e.g. @kingstinct/react-native-healthkit).
 // ============================================================
 
 import type { CycleState } from '@/types';
 
 /**
- * Derive the current menstrual cycle state from HealthKit data.
- *
- * Real implementation (Section 11.3):
- * - Reads AppleHealthKit.getMenstrualFlowSamples() for the past 90 days
- * - Finds most recent period start (HKMetadataKeyMenstrualCycleStart = true)
- * - Calculates cycle day, phase, and luteal adjustments
- * - Returns a CycleState object
- *
- * This stub returns a mock "unknown" state to keep UI development unblocked.
- * TODO(Section 11.3) - replace with real HealthKit query in bare workflow.
+ * Returns an "unknown" cycle state. See the file header: this library cannot
+ * read menstrual flow, so cycle data is sourced from manual backend entry, not
+ * from here. Kept for API compatibility with callers expecting a CycleState.
  */
 export async function getCycleState(): Promise<CycleState> {
-  // TODO(Section 11.3) - implement real HealthKit read:
-  // import AppleHealthKit from 'react-native-health';
-  // return new Promise((resolve) => {
-  //   AppleHealthKit.getMenstrualFlowSamples({ ... }, (err, samples) => { ... });
-  // });
-
-  console.warn(
-    '[Cycle stub] getCycleState - returning mock data. ' +
-      'Link react-native-health in a bare build to enable real cycle reading.',
-  );
-
   return {
     cycleDay: 0,
     phase: 'unknown',

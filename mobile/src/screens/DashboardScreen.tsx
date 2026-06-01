@@ -4,7 +4,7 @@
 // The scan FAB now lives in the tab bar (App.tsx), not here.
 // ============================================================
 
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
-import type { FoodLogEntry } from '@/types';
+import type { FoodLogEntry, WorkoutEntry } from '@/types';
 import { useAppStore } from '@/state/useAppStore';
+import { syncHealthKitForDay } from '@/health/healthkit';
 import { CalorieRing } from '@/components/CalorieRing';
 import { MacroBars } from '@/components/MacroBars';
 import { MicronutrientRow } from '@/components/MicronutrientRow';
@@ -40,9 +41,6 @@ function groupByMeal(entries: FoodLogEntry[]) {
 // Mock iron/calcium/magnesium/zinc consumed today.
 const MOCK_MICROS = { iron_mg: 6, calcium_mg: 320, magnesium_mg: 110, zinc_mg: 4 };
 
-// Mock exercise for stub mode.
-const MOCK_EXERCISE = { activeCaloriesBurned: 380 };
-
 function SectionLabel({ children }: { children: string }): React.ReactElement {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
@@ -57,6 +55,38 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   const proteinConsumed = useAppStore((s) => s.proteinConsumedToday)();
   const carbsConsumed = useAppStore((s) => s.carbsConsumedToday)();
   const fatConsumed = useAppStore((s) => s.fatConsumedToday)();
+
+  // Real Apple Health data for today (active calories + workouts). Null until synced.
+  const [activeCalories, setActiveCalories] = useState(0);
+  const [steps, setSteps] = useState(0);
+  const [weightLbs, setWeightLbs] = useState<number | null>(null);
+  const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
+  const [healthSyncing, setHealthSyncing] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  const syncHealth = useCallback(async () => {
+    setHealthSyncing(true);
+    setHealthError(null);
+    try {
+      const data = await syncHealthKitForDay(new Date());
+      setActiveCalories(data.activeCalories);
+      setSteps(data.steps);
+      setWeightLbs(data.weightLbs);
+      setWorkouts(data.workouts);
+    } catch (err) {
+      setHealthError(
+        err instanceof Error ? err.message : 'Could not read Apple Health.',
+      );
+    } finally {
+      setHealthSyncing(false);
+    }
+  }, []);
+
+  // Attempt a sync on first mount; the first call surfaces the iOS permission
+  // sheet. Errors (denied / not on a HealthKit build) are shown, not thrown.
+  useEffect(() => {
+    void syncHealth();
+  }, [syncHealth]);
 
   const meals = groupByMeal(todayLog);
 
@@ -85,10 +115,18 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
         <CalorieRing
           target={targets.effectiveCalories}
           consumed={caloriesConsumed}
-          burned={MOCK_EXERCISE.activeCaloriesBurned}
+          burned={activeCalories}
           isLuteal={isLuteal}
           lutealLabel={lutealLabel}
         />
+
+        {(steps > 0 || weightLbs != null || activeCalories > 0) && (
+          <Text style={styles.healthLine}>
+            Apple Health · {steps.toLocaleString()} steps
+            {activeCalories > 0 ? ` · ${activeCalories} cal burned` : ''}
+            {weightLbs != null ? ` · ${weightLbs} lb` : ''}
+          </Text>
+        )}
 
         <MacroBars
           protein={{ consumed: proteinConsumed, target: targets.effectiveProteinG }}
@@ -116,7 +154,13 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
 
         <WaterTracker summary={waterSummary} onAddWater={handleAddWater} />
 
-        <ExerciseLog activeCaloriesBurned={MOCK_EXERCISE.activeCaloriesBurned} workouts={[]} />
+        <ExerciseLog
+          activeCaloriesBurned={activeCalories}
+          workouts={workouts}
+          onConnectAppleWatch={syncHealth}
+          syncing={healthSyncing}
+          errorText={healthError}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -144,6 +188,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 8,
+  },
+  healthLine: {
+    fontFamily: font.body,
+    fontSize: 12,
+    color: tokens.inkMuted,
+    textAlign: 'center',
+    marginTop: -4,
   },
   block: {},
   mealsBlock: {
