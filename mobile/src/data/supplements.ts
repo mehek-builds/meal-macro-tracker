@@ -66,13 +66,4 @@ export const SUPPLEMENT_SCHEDULE: ScheduledSupplement[] = [
     reminderMinute: 0,
     note: 'With food, any time of day. No loading needed.',
   },
-  {
-    id: 'magnesium',
-    name: 'Magnesium glycinate',
-    dose: '200-400 mg',
-    time: 'night',
-    reminderHour: 21,
-    reminderMinute: 30,
-    note: 'Before bed. Supports sleep quality.',
-  },
 ];

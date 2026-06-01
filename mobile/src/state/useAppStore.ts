@@ -26,9 +26,12 @@ const zustandStorage = {
   removeItem: (name: string): void => mmkv.delete(name),
 };
 
-// --------------- Mock seed data -----------------
+// --------------- Initial defaults -----------------
+// Bootstrap state only. Onboarding writes the user's real profile/targets, and
+// persisted state rehydrates over these on launch, so they are never shown as
+// real data once a user has onboarded.
 
-const MOCK_PROFILE: UserProfile = {
+const DEFAULT_PROFILE: UserProfile = {
   id: 'local-user',
   sex: 'female',
   age: 20,
@@ -48,7 +51,7 @@ const MOCK_PROFILE: UserProfile = {
 };
 
 /** Mifflin-St Jeor BMR + surplus for 42 kg lightly-active female (Section 2). */
-const MOCK_TARGETS: Targets = {
+const DEFAULT_TARGETS: Targets = {
   bmr: 1177.8,
   tdee: 1619.4,
   calories: 1919,
@@ -63,7 +66,7 @@ const MOCK_TARGETS: Targets = {
   waterGoalOz: 84.5,
 };
 
-const MOCK_WATER_SUMMARY: WaterSummary = {
+const DEFAULT_WATER_SUMMARY: WaterSummary = {
   date: new Date().toISOString().split('T')[0],
   entries: [],
   totalOz: 0,
@@ -73,7 +76,7 @@ const MOCK_WATER_SUMMARY: WaterSummary = {
   percentComplete: 0,
 };
 
-const MOCK_CYCLE_STATE: CycleState = {
+const DEFAULT_CYCLE_STATE: CycleState = {
   cycleDay: 0,
   phase: 'unknown',
   lastPeriodStart: null,
@@ -140,8 +143,8 @@ export const useAppStore = create<AppState>()(
   setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
 
   // Profile & targets
-  profile: MOCK_PROFILE,
-  targets: MOCK_TARGETS,
+  profile: DEFAULT_PROFILE,
+  targets: DEFAULT_TARGETS,
   setProfile: (profile) => set({ profile }),
   setTargets: (targets) => set({ targets }),
 
@@ -154,7 +157,7 @@ export const useAppStore = create<AppState>()(
     set((state) => ({ todayLog: state.todayLog.filter((e) => e.id !== id) })),
 
   // Water
-  waterSummary: MOCK_WATER_SUMMARY,
+  waterSummary: DEFAULT_WATER_SUMMARY,
   setWaterSummary: (summary) => set({ waterSummary: summary }),
   addWaterEntry: (entry) =>
     set((state) => {
@@ -190,7 +193,7 @@ export const useAppStore = create<AppState>()(
     }),
 
   // Cycle
-  cycleState: MOCK_CYCLE_STATE,
+  cycleState: DEFAULT_CYCLE_STATE,
   setCycleState: (cycleState) => set({ cycleState }),
 
   // Supplements

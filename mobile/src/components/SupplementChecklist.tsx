@@ -2,27 +2,23 @@
 // SupplementChecklist - daily supplement tracker (Section 12).
 // Replaces the food-derived micronutrient strip on the dashboard. Shows the
 // user's real protocol (from the vault) grouped by time of day; one tap marks
-// a supplement taken for the day. Includes a daily-reminders toggle.
+// a supplement taken for the day. Daily reminders are scheduled separately.
 // ============================================================
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Pill, Check, Bell, BellOff } from '@/theme/icons';
+import { Pill, Check } from '@/theme/icons';
 import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 import { SUPPLEMENT_SCHEDULE, TIME_ORDER, TIME_LABEL } from '@/data/supplements';
 
 interface SupplementChecklistProps {
   takenIds: string[];
   onToggle: (id: string) => void;
-  remindersOn: boolean;
-  onToggleReminders: () => void;
 }
 
 export function SupplementChecklist({
   takenIds,
   onToggle,
-  remindersOn,
-  onToggleReminders,
 }: SupplementChecklistProps): React.ReactElement {
   const total = SUPPLEMENT_SCHEDULE.length;
   const takenCount = SUPPLEMENT_SCHEDULE.filter((s) => takenIds.includes(s.id)).length;
@@ -72,22 +68,6 @@ export function SupplementChecklist({
           </View>
         );
       })}
-
-      <TouchableOpacity
-        style={styles.reminderBtn}
-        activeOpacity={0.7}
-        onPress={onToggleReminders}
-        accessibilityRole="button"
-      >
-        {remindersOn ? (
-          <Bell size={15} color={tokens.accent} strokeWidth={2} />
-        ) : (
-          <BellOff size={15} color={tokens.accent} strokeWidth={2} />
-        )}
-        <Text style={styles.reminderText}>
-          {remindersOn ? 'Daily reminders on' : 'Turn on daily reminders'}
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -150,16 +130,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 16,
   },
-  reminderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: tokens.accentSoft,
-    borderRadius: radius.chip,
-    paddingHorizontal: 14,
-    minHeight: 44,
-    marginTop: 8,
-  },
-  reminderText: { fontFamily: font.bodyBold, fontSize: 13, color: tokens.accent },
 });

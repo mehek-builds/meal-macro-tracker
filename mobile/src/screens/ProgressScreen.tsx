@@ -18,68 +18,12 @@ import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
 type ProgressTab = 'measurements' | 'bloodwork' | 'water';
 
-const MOCK_MEASUREMENTS: BodyMeasurement[] = [
-  {
-    id: 'meas-1',
-    date: '2026-05-01',
-    upperArmCm: 23,
-    chestCm: 74,
-    waistCm: 61,
-    hipsCm: 80,
-    thighCm: 44,
-    notes: 'Start of tracking',
-  },
-];
-
-const MOCK_BLOODWORK: BloodworkResult[] = [
-  {
-    id: 'bw-1',
-    date: '2026-05-01',
-    markerName: 'Vitamin D (25-OH)',
-    value: 29.2,
-    unit: 'ng/mL',
-    refRangeLow: 40,
-    refRangeHigh: 60,
-    status: 'low',
-    retestDate: '2026-07-15',
-    notes: 'Target 40-60 ng/mL. Currently on 10,000 IU D3.',
-  },
-  {
-    id: 'bw-2',
-    date: '2026-05-01',
-    markerName: 'Ferritin',
-    value: 32,
-    unit: 'ng/mL',
-    refRangeLow: 40,
-    refRangeHigh: 100,
-    status: 'low',
-    retestDate: '2026-08-01',
-    notes: '~26 with lab calibration. Supplementing with Eiron CR.',
-  },
-  {
-    id: 'bw-3',
-    date: '2026-05-01',
-    markerName: 'Hemoglobin',
-    value: 13.0,
-    unit: 'g/dL',
-    refRangeLow: 11.1,
-    refRangeHigh: 15.9,
-    status: 'normal',
-    retestDate: null,
-    notes: null,
-  },
-];
-
-const MOCK_WEEKLY_WATER = [
-  { day: 'Mon', oz: 90, goalMet: true },
-  { day: 'Tue', oz: 72, goalMet: false },
-  { day: 'Wed', oz: 85, goalMet: true },
-  { day: 'Thu', oz: 96, goalMet: true },
-  { day: 'Fri', oz: 60, goalMet: false },
-  { day: 'Sat', oz: 88, goalMet: true },
-  { day: 'Sun', oz: 52, goalMet: false },
-];
-const WATER_GOAL_OZ = 85;
+// Real data only. These populate from what the user logs; measurement /
+// bloodwork entry and persisted water history are not yet wired, so they start
+// empty and the sections render honest empty states until real data exists.
+const MEASUREMENTS: BodyMeasurement[] = [];
+const BLOODWORK: BloodworkResult[] = [];
+const WEEKLY_WATER: { day: string; oz: number; goalMet: boolean }[] = [];
 
 // ---------- shared ----------
 
@@ -103,10 +47,10 @@ function MeasurementsSection(): React.ReactElement {
       <Text style={styles.sectionHint}>
         Measured monthly. Rising arms and thighs with a stable waist = lean gain.
       </Text>
-      {MOCK_MEASUREMENTS.length === 0 ? (
+      {MEASUREMENTS.length === 0 ? (
         <EmptyState title="Log a few months to see trends." />
       ) : (
-        MOCK_MEASUREMENTS.map((m) => (
+        MEASUREMENTS.map((m) => (
           <View key={m.id} style={styles.card}>
             <Text style={styles.cardDate}>{m.date}</Text>
             <View style={styles.measureGrid}>
@@ -150,10 +94,10 @@ function BloodworkSection(): React.ReactElement {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Bloodwork</Text>
       <Text style={styles.sectionHint}>Results and upcoming retests.</Text>
-      {MOCK_BLOODWORK.length === 0 ? (
+      {BLOODWORK.length === 0 ? (
         <EmptyState title="No results yet. Add your last panel." />
       ) : (
-        MOCK_BLOODWORK.map((b) => (
+        BLOODWORK.map((b) => (
           <View key={b.id} style={styles.card}>
             <View style={styles.bloodHeader}>
               <Text style={styles.markerName}>{b.markerName}</Text>
@@ -178,20 +122,31 @@ function BloodworkSection(): React.ReactElement {
 }
 
 function WeeklyWaterSection(): React.ReactElement {
-  const daysHitGoal = MOCK_WEEKLY_WATER.filter((d) => d.goalMet).length;
+  if (WEEKLY_WATER.length === 0) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Weekly water</Text>
+        <Text style={styles.sectionHint}>
+          Your daily water totals will chart here as you log water each day.
+        </Text>
+        <EmptyState title="No water history yet." />
+      </View>
+    );
+  }
+
+  const daysHitGoal = WEEKLY_WATER.filter((d) => d.goalMet).length;
   const weeklyAvg = Math.round(
-    MOCK_WEEKLY_WATER.reduce((s, d) => s + d.oz, 0) / MOCK_WEEKLY_WATER.length,
+    WEEKLY_WATER.reduce((s, d) => s + d.oz, 0) / WEEKLY_WATER.length,
   );
-  const maxOz = Math.max(...MOCK_WEEKLY_WATER.map((d) => d.oz), WATER_GOAL_OZ);
+  const maxOz = Math.max(...WEEKLY_WATER.map((d) => d.oz));
 
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Weekly water</Text>
-      <Text style={styles.sectionHint}>Goal line: {WATER_GOAL_OZ} oz/day</Text>
 
       <View style={styles.card}>
         <View style={styles.barChart}>
-          {MOCK_WEEKLY_WATER.map((d) => {
+          {WEEKLY_WATER.map((d) => {
             const height = Math.round((d.oz / maxOz) * 100);
             return (
               <View key={d.day} style={styles.barWrapper}>
@@ -208,7 +163,7 @@ function WeeklyWaterSection(): React.ReactElement {
           })}
         </View>
         <Text style={styles.waterStats}>
-          Weekly avg: {weeklyAvg} oz · Hit goal {daysHitGoal} of 7 days
+          Weekly avg: {weeklyAvg} oz · Hit goal {daysHitGoal} of {WEEKLY_WATER.length} days
         </Text>
       </View>
     </View>

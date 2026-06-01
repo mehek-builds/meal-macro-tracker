@@ -11,16 +11,12 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
-  Alert,
 } from 'react-native';
 import type { FoodLogEntry, WorkoutEntry, CycleState } from '@/types';
 import { useAppStore } from '@/state/useAppStore';
 import { syncHealthKitForDay } from '@/health/healthkit';
 import { getCycleState } from '@/health/cycle';
-import {
-  scheduleSupplementReminders,
-  cancelSupplementReminders,
-} from '@/notifications/supplementReminders';
+import { scheduleSupplementReminders } from '@/notifications/supplementReminders';
 import { CalorieRing } from '@/components/CalorieRing';
 import { MacroBars } from '@/components/MacroBars';
 import { SupplementChecklist } from '@/components/SupplementChecklist';
@@ -62,7 +58,6 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   const supplementsTaken = useAppStore((s) => s.supplementsTaken);
   const toggleSupplementTaken = useAppStore((s) => s.toggleSupplementTaken);
   const supplementRemindersOn = useAppStore((s) => s.supplementRemindersOn);
-  const setSupplementRemindersOn = useAppStore((s) => s.setSupplementRemindersOn);
 
   // Real Apple Health data for today (active calories + workouts). Null until synced.
   const [activeCalories, setActiveCalories] = useState(0);
@@ -101,10 +96,29 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
     void syncHealth();
   }, [syncHealth]);
 
+  // Keep the OS reminder schedule in sync with the current supplement list
+  // (e.g. after a supplement is removed). Only runs when reminders are on.
+  useEffect(() => {
+    if (supplementRemindersOn) void scheduleSupplementReminders();
+  }, [supplementRemindersOn]);
+
   const meals = groupByMeal(todayLog);
   const today = new Date().toISOString().slice(0, 10);
   const takenSupplementIds =
     supplementsTaken.date === today ? supplementsTaken.ids : [];
+
+  // Water goal derives from the user's real onboarding-computed target, not a
+  // seeded constant. Recompute remaining/percent against it for display.
+  const waterGoalOz = Math.round(targets.waterGoalOz);
+  const waterView = {
+    ...waterSummary,
+    goalOz: waterGoalOz,
+    remainingOz: Math.max(0, waterGoalOz - waterSummary.totalOz),
+    percentComplete:
+      waterGoalOz > 0
+        ? Math.min(100, Math.round((waterSummary.totalOz / waterGoalOz) * 100))
+        : 0,
+  };
 
   // Prefer the live HealthKit-derived cycle (from Apple Health / Clue) over the
   // store's backend value when available.
@@ -113,26 +127,6 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   const lutealLabel = isLuteal
     ? `+${effectiveCycle.lutealCalorieBonus} cal, +${effectiveCycle.lutealProteinBonus}g protein`
     : undefined;
-
-  const handleToggleReminders = useCallback(async (): Promise<void> => {
-    try {
-      if (supplementRemindersOn) {
-        await cancelSupplementReminders();
-        setSupplementRemindersOn(false);
-        return;
-      }
-      const granted = await scheduleSupplementReminders();
-      setSupplementRemindersOn(granted);
-      if (!granted) {
-        Alert.alert(
-          'Reminders need notifications',
-          'Turn on notifications for Fitness Tracker in Settings to get supplement reminders.',
-        );
-      }
-    } catch {
-      Alert.alert('Could not set reminders', 'Please try again in a moment.');
-    }
-  }, [supplementRemindersOn, setSupplementRemindersOn]);
 
   const handleAddWater = (oz: number): void => {
     addWaterEntry({
@@ -183,8 +177,6 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
         <SupplementChecklist
           takenIds={takenSupplementIds}
           onToggle={toggleSupplementTaken}
-          remindersOn={supplementRemindersOn}
-          onToggleReminders={handleToggleReminders}
         />
 
         <View style={styles.mealsBlock}>
@@ -195,7 +187,7 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
           <MealSection meal="snacks" entries={meals.snacks} onAddFood={onPressScan} />
         </View>
 
-        <WaterTracker summary={waterSummary} onAddWater={handleAddWater} />
+        <WaterTracker summary={waterView} onAddWater={handleAddWater} />
 
         <ExerciseLog
           activeCaloriesBurned={activeCalories}

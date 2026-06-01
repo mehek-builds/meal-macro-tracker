@@ -12,6 +12,7 @@ import {
   StyleSheet,
   SafeAreaView,
   FlatList,
+  Alert,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -26,30 +27,6 @@ import type { NutritionItem } from '@/types';
 import { scanPhoto } from '@/api/endpoints';
 import { X } from '@/theme/icons';
 import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
-
-const MOCK_SCAN_RESULT: NutritionItem[] = [
-  {
-    foodName: 'Brown rice, cooked',
-    portionDescription: '1 cup (~180g)',
-    weightGrams: 180,
-    calories: 216,
-    proteinG: 5,
-    carbsG: 45,
-    fatG: 2,
-    confidence: 0.88,
-  },
-  {
-    foodName: 'Chicken breast, grilled',
-    portionDescription: '~120g',
-    weightGrams: 120,
-    calories: 198,
-    proteinG: 37,
-    carbsG: 0,
-    fatG: 4,
-    confidence: 0.91,
-    hiddenCaloriesWarning: 'Likely cooked with ~1 tsp oil (+40 cal)',
-  },
-];
 
 const METHODS = ['Photo', 'Barcode', 'Label', 'Voice', 'Search'];
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
@@ -102,20 +79,23 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
     setPhase('processing');
     try {
       const photo = await cameraRef.current?.takePictureAsync({ base64: true, quality: 0.5 });
-      if (photo?.base64) {
-        // Real analysis: send the captured photo to the backend vision endpoint.
-        const result = await scanPhoto(photo.base64);
-        if (result.items && result.items.length > 0) {
-          setItems(result.items);
-          setPhase('results');
-          return;
-        }
+      if (!photo?.base64) throw new Error('no-photo');
+      // Real analysis only — the captured photo goes to the backend vision endpoint.
+      const result = await scanPhoto(photo.base64);
+      if (result.items && result.items.length > 0) {
+        setItems(result.items);
+        setPhase('results');
+        return;
       }
+      throw new Error('no-items');
     } catch {
-      // No camera (Simulator), offline, or backend error - fall back to mock below.
+      // Never log fabricated food: on any failure, return to the viewfinder.
+      setPhase('preview');
+      Alert.alert(
+        "Couldn't analyze that photo",
+        'No food was detected, or the analyzer is unreachable. Make sure the food is clearly visible and try again.',
+      );
     }
-    setItems(MOCK_SCAN_RESULT);
-    setPhase('results');
   };
 
   const handleRemoveItem = (index: number): void => {
