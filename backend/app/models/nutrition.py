@@ -33,6 +33,10 @@ class NutritionItem(CamelModel):
     fat_g: float
     confidence: float = Field(ge=0.0, le=1.0)
     hidden_calories_warning: Optional[str] = None
+    # Provenance of the macro numbers: "usda:<fdcId>" when verified against
+    # USDA FoodData Central, "model_estimate" when only the vision model saw it.
+    data_source: Optional[str] = None
+    matched_food: Optional[str] = None  # the USDA food description we matched to
     # Critical micronutrients (PRD Section 5). Optional — populated when known.
     iron_mg: Optional[float] = None
     calcium_mg: Optional[float] = None

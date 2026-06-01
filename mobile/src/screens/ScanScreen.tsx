@@ -23,6 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import type { NutritionItem } from '@/types';
+import { scanPhoto } from '@/api/endpoints';
 import { X } from '@/theme/icons';
 import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
 
@@ -100,16 +101,21 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
   const handleCapture = async (): Promise<void> => {
     setPhase('processing');
     try {
-      // Real photo capture on a physical device. When the backend is live,
-      // send this image's base64 to scanPhoto() instead of the mock below.
-      await cameraRef.current?.takePictureAsync({ quality: 0.5 });
+      const photo = await cameraRef.current?.takePictureAsync({ base64: true, quality: 0.5 });
+      if (photo?.base64) {
+        // Real analysis: send the captured photo to the backend vision endpoint.
+        const result = await scanPhoto(photo.base64);
+        if (result.items && result.items.length > 0) {
+          setItems(result.items);
+          setPhase('results');
+          return;
+        }
+      }
     } catch {
-      // No camera (Simulator) - fall through to the mock result.
+      // No camera (Simulator), offline, or backend error - fall back to mock below.
     }
-    setTimeout(() => {
-      setItems(MOCK_SCAN_RESULT);
-      setPhase('results');
-    }, 1200);
+    setItems(MOCK_SCAN_RESULT);
+    setPhase('results');
   };
 
   const handleRemoveItem = (index: number): void => {
