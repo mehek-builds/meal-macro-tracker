@@ -2,7 +2,7 @@
 
 **Project:** Personal AI nutrition / exercise / hydration tracker (surplus-first; muscle-gain + 2027 marathon goals), scaffolded from a 1,748-line PRD.
 **Repo:** https://github.com/mehek-builds/fitness-tracker
-**Last updated:** 2026-05-31 (main @ `5dd65a9`)
+**Last updated:** 2026-06-01 (main @ `d1ae86c`)
 
 > Living document, mirrored in the repo (docs/BUILD_LOG.md) and the notes vault. Append a dated entry to the Change Log and update the commit-arc table on each significant build change.
 
@@ -35,6 +35,11 @@
 ## 4. Commit arc
 
 ```
+d1ae86c  Compute cycle day + period-start dates in local time
+266a977  Read menstrual-flow (cycle) from Apple Health (patch react-native-health)
+a267957  Wire real Apple HealthKit reads into the dashboard
+cbb7df5  Make food scans real: GPT-4o vision + USDA FoodData Central
+ff2ce0b  Log first successful Simulator build + camera wave
 5dd65a9  Wire live camera into scan screen (simulator fallback)
 139e07c  Bring BUILD_LOG current (chase + surplus/entitlement)
 e875f55  Wire confirmed scan items into the food log
@@ -62,20 +67,27 @@ d8d1b56  Align mobile types/client to backend contract
 
 ## 5. Current state
 
-Repo clean, local = remote. Backend: 252 tests passing; mobile `tsc --noEmit` clean (type-verified). All requested work and reviewed autonomous-session output committed.
+Repo clean, local = remote (main @ `d1ae86c`, pushed). Backend tests green; mobile `tsc --noEmit` clean. **Running on the physical iPhone 17 Pro Max** with three formerly-stubbed systems now real and verified on-device:
+- **Food scan:** photo → GPT-4o vision (food + portion) → USDA FoodData Central authoritative macros/micros scaled to portion. Real macros confirmed on a live scan.
+- **Apple HealthKit:** real reads of active energy, steps, weight, workouts; dashboard shows live data (e.g. "Apple Health · 201 steps · 99.2 lb"). Signed and installed on a **free** personal Apple team.
+- **Cycle (Apple Health menstrual flow, incl. Clue):** patched `react-native-health` to read menstrual flow; derives cycle day / phase / luteal adjustment; verified reading real Clue data ("Cycle day 2 · follicular").
 
-## 6. Standing caveats (cannot close from the build environment)
+## 6. Standing caveats
 
-1. **Render-verified on the iOS Simulator** - the app builds clean and runs on the iPhone 17 Pro simulator (full UI, Metro-served). NOT yet verified on a physical device: on-device signing needs a paid Apple Developer Program account, since the HealthKit and push entitlements are paid-only (a free/personal team cannot provision them).
-2. **iOS-only** - `android/` was not generated (run `expo prebuild -p android` for parity).
-3. **Stubs are stubs** - AI photo scan / RAG, HealthKit sync, and Supabase persistence are placeholders.
-4. Design files cite PRD section numbers that do not exist in the 20-section PRD (cosmetic).
+1. **HealthKit works on a FREE Apple account** - this disproves the earlier "paid-only" assumption. The `com.apple.developer.healthkit` entitlement signs and runs on a free personal team (verified, Xcode 26.5 / iOS 26.5, on a physical iPhone). BUT: free-account builds **expire after ~7 days** and must be re-signed/reinstalled, and **Push notifications remain paid-only**.
+2. **Clue → Apple Health sync is partial and non-retroactive** - Clue only writes period data tracked *after* its Apple Health permission is enabled; it does not backfill historical days. So the app's cycle day can lag by any un-synced first day(s). This is documented Clue behavior, not an app bug; re-logging the missing day in Clue fixes it.
+3. **Persistence still in-memory** - Supabase is not wired (backend uses an in-memory store). Food photo scan, HealthKit reads, and cycle are now REAL (not stubs); the barcode and nutrition-label-OCR scan paths remain stubs.
+4. **iOS-only** - `android/` was not generated (run `expo prebuild -p android` for parity).
+5. Design files cite PRD section numbers that do not exist in the 20-section PRD (cosmetic).
 
 ## 7. Next steps
 
-- Build on a Mac to verify it runs (`npx expo run:ios`).
+- ~~Build on a Mac to verify it runs~~ DONE - built, signed, and running on the physical iPhone 17 Pro Max.
+- ~~Wire real AI providers for the photo scan~~ DONE - GPT-4o vision + USDA FoodData Central.
+- Wire real **Supabase** persistence (still in-memory).
+- Add real macros for the **barcode** and **label-OCR** scan paths (still stubs); USDA + Open Food Facts.
+- Surface HealthKit **steps + weight** as first-class dashboard cards (currently a one-line readout); pull cycle micros into the macro/micros view.
 - Generate `android/` for platform parity.
-- Wire real Supabase + AI providers, replacing the stubs.
 - Implement deferred PRD features: voice input, recipe builder, marathon nutrition overlays, strength / GZCLP log, notifications.
 
 ## 8. Change log
@@ -84,3 +96,11 @@ Repo clean, local = remote. Backend: 252 tests passing; mobile `tsc --noEmit` cl
 - **2026-05-31** - Re-ran tester + reviewer. Tester confirmed mobile `tsc --noEmit` is clean (first compile-verification of the design-system + contract types). Reviewer found 0 criticals; 1 HIGH (the exercise net-calorie result leaked snake_case keys) fixed by modeling it as a `NetCalorieResult` CamelModel; plus LOW polish (CalorieRing morning-rule threshold, a `needs_recalc` wiring note, Settings now persists net-calorie-mode to the backend). Commit `c1e6bf6`.
 - **2026-05-31** - Chased the autonomous design/native session to completion, committing each settled wave after a tsc / JSON / no-junk check: MMKV store persistence, expo-dev-client removed, onboarding redesign, ring autosize, and scan-to-log wiring. Then the agreed follow-ups: lowered the default calorie surplus to 300 so targets match the PRD table (`394c95e`), added the HealthKit entitlement + write usage string for App Store compliance (`454ebd2`), and brought this log current. Backend 252 green and mobile tsc clean throughout. main at `e875f55`.
 - **2026-05-31** - First successful build + launch: ran the app on the **iPhone 17 Pro iOS Simulator** (Build Succeeded, 0 errors) via `DEVELOPER_DIR` against the installed Xcode 26.5, with Metro serving the bundle. This render-verifies the design system, navigation, and screens. Also wired live `expo-camera` into ScanScreen with a simulator fallback (`5dd65a9`). The physical-device build is blocked only on signing: a free Apple ID cannot provision the HealthKit/push entitlements, so on-device requires a paid Apple Developer Program enrollment. main at `5dd65a9`.
+
+- **2026-06-01** - **On physical device + free-account signing (caveat #1 disproved).** Built, signed, and installed on the physical **iPhone 17 Pro Max** using a **free** personal Apple team. The `com.apple.developer.healthkit` entitlement signs fine on a free account (contrary to the prior "paid-only" assumption) on Xcode 26.5 / iOS 26.5. Trade-offs: the build expires after ~7 days; Push remains paid-only (entitlement stripped). Automatic signing + `DEVELOPMENT_TEAM` set in the pbxproj.
+
+- **2026-06-01** - **Food scan is real (`cbb7df5`).** Photo → GPT-4o vision identifies food + portion → **USDA FoodData Central** supplies authoritative per-100g macros + micronutrients scaled to the portion (`backend/app/services/usda.py`, wired into `vision_router.py`). Each item tagged `usda:<fdcId>` or `model_estimate`. Match selection prefers canonical Foundation/SR Legacy entries over FNDDS prepared dishes (so "broccoli" → "Broccoli, raw" not "Fried broccoli"). Needs `USDA_API_KEY` in `backend/.env` (free key; DEMO_KEY throttles at 30/hr). Verified end-to-end: a live scan returned real USDA-backed macros.
+
+- **2026-06-01** - **Apple HealthKit is real (`a267957`).** Replaced the HealthKit stubs with real `react-native-health` reads (active energy, steps, body weight, workouts incl. Apple Watch source detection); dashboard requests permission on load, shows live data ("Apple Health · 201 steps · 99.2 lb"), and "Connect Apple Watch" re-syncs. Restored the HealthKit entitlement + added the `react-native-health` config plugin. Verified reading real on-device data (steps/weight confirmed not mocks).
+
+- **2026-06-01** - **Cycle / menstrual flow from Apple Health, incl. Clue (`266a977`).** Stock `react-native-health` (v1.19, latest) has no menstrual-flow API, so **patched the native module** (patch-package: `patches/react-native-health+1.19.0.patch` + a `postinstall` hook) to add `getMenstrualFlowSamples` + the `MenstrualFlow` read scope, modeled on its Sleep category reader. `cycle.ts` derives cycle day / phase / luteal bonus from the period data (matching `backend/app/services/cycle.py`), guards samples >45 days old as stale, and the dashboard shows "Cycle day N · phase" + drives the luteal calorie/protein badge. **Diagnosed the Clue gotcha:** Clue's Apple Health sync is non-retroactive (only writes period data logged after the integration is enabled). After re-logging in Clue, real data synced (May 31 heavy, Jun 1 light) and the app derived "Cycle day 2 · follicular," matching Clue's phase. Also fixed a local-vs-UTC date bug in the cycle math (`d1ae86c`). main at `d1ae86c`, pushed to origin.
