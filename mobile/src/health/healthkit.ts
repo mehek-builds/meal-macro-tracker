@@ -29,6 +29,7 @@ export const HEALTHKIT_PERMISSIONS: HealthKitPermissions = {
       P.Weight,
       P.Workout,
       P.HeartRate,
+      P.MenstrualFlow, // cycle tracking (e.g. period data Clue writes to Apple Health)
     ],
     write: [P.Weight, P.Water],
   },

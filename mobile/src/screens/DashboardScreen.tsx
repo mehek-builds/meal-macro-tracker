@@ -12,9 +12,10 @@ import {
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
-import type { FoodLogEntry, WorkoutEntry } from '@/types';
+import type { FoodLogEntry, WorkoutEntry, CycleState } from '@/types';
 import { useAppStore } from '@/state/useAppStore';
 import { syncHealthKitForDay } from '@/health/healthkit';
+import { getCycleState } from '@/health/cycle';
 import { CalorieRing } from '@/components/CalorieRing';
 import { MacroBars } from '@/components/MacroBars';
 import { MicronutrientRow } from '@/components/MicronutrientRow';
@@ -61,6 +62,7 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   const [steps, setSteps] = useState(0);
   const [weightLbs, setWeightLbs] = useState<number | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
+  const [hkCycle, setHkCycle] = useState<CycleState | null>(null);
   const [healthSyncing, setHealthSyncing] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
 
@@ -73,6 +75,10 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
       setSteps(data.steps);
       setWeightLbs(data.weightLbs);
       setWorkouts(data.workouts);
+      // Read menstrual-flow data (Clue) and derive cycle phase. Permissions were
+      // just granted by syncHealthKitForDay, so this read is authorized.
+      const cycle = await getCycleState();
+      setHkCycle(cycle.phase !== 'unknown' ? cycle : null);
     } catch (err) {
       setHealthError(
         err instanceof Error ? err.message : 'Could not read Apple Health.',
@@ -90,9 +96,12 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
 
   const meals = groupByMeal(todayLog);
 
-  const isLuteal = cycleState.phase === 'luteal';
+  // Prefer the live HealthKit-derived cycle (from Apple Health / Clue) over the
+  // store's backend value when available.
+  const effectiveCycle = hkCycle ?? cycleState;
+  const isLuteal = effectiveCycle.phase === 'luteal';
   const lutealLabel = isLuteal
-    ? `+${cycleState.lutealCalorieBonus} cal, +${cycleState.lutealProteinBonus}g protein`
+    ? `+${effectiveCycle.lutealCalorieBonus} cal, +${effectiveCycle.lutealProteinBonus}g protein`
     : undefined;
 
   const handleAddWater = (oz: number): void => {
@@ -125,6 +134,13 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
             Apple Health · {steps.toLocaleString()} steps
             {activeCalories > 0 ? ` · ${activeCalories} cal burned` : ''}
             {weightLbs != null ? ` · ${weightLbs} lb` : ''}
+          </Text>
+        )}
+
+        {hkCycle && hkCycle.phase !== 'unknown' && (
+          <Text style={styles.healthLine}>
+            Cycle day {hkCycle.cycleDay} · {hkCycle.phase} phase
+            {hkCycle.nearOvulation ? ' · near ovulation' : ''}
           </Text>
         )}
 
