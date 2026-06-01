@@ -4,7 +4,7 @@
 // chrome, processing loader, and results move to warm-light Nourish.
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import Animated, {
   Easing,
   useReducedMotion,
 } from 'react-native-reanimated';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import type { NutritionItem } from '@/types';
 import { X } from '@/theme/icons';
 import { tokens, font, type, radius, space, shadow } from '@/theme/tokens';
@@ -87,13 +88,28 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
   const [items, setItems] = useState<NutritionItem[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<string>('lunch');
   const [method, setMethod] = useState<string>('Photo');
+  const cameraRef = useRef<CameraView>(null);
+  const [permission, requestPermission] = useCameraPermissions();
 
-  const handleCapture = (): void => {
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      void requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  const handleCapture = async (): Promise<void> => {
     setPhase('processing');
+    try {
+      // Real photo capture on a physical device. When the backend is live,
+      // send this image's base64 to scanPhoto() instead of the mock below.
+      await cameraRef.current?.takePictureAsync({ quality: 0.5 });
+    } catch {
+      // No camera (Simulator) - fall through to the mock result.
+    }
     setTimeout(() => {
       setItems(MOCK_SCAN_RESULT);
       setPhase('results');
-    }, 1500);
+    }, 1200);
   };
 
   const handleRemoveItem = (index: number): void => {
@@ -117,10 +133,20 @@ export function ScanScreen({ onClose, onConfirm }: ScanScreenProps): React.React
       {/* ---- preview ---- */}
       {phase === 'preview' && (
         <View style={styles.cameraArea}>
-          <View style={styles.cameraHintWrap}>
-            <Text style={styles.cameraText}>Camera preview</Text>
-            <Text style={styles.cameraHint}>Point at your meal and capture</Text>
-          </View>
+          {permission?.granted && (
+            <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+          )}
+          {permission?.granted ? (
+            <View style={styles.flex} />
+          ) : (
+            <View style={styles.cameraHintWrap}>
+              <Text style={styles.cameraText}>Camera access needed</Text>
+              <Text style={styles.cameraHint}>Allow camera access to scan your meals.</Text>
+              <TouchableOpacity style={styles.permBtn} onPress={requestPermission} accessibilityRole="button">
+                <Text style={styles.permBtnText}>Enable camera</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={styles.methodRow}>
             {METHODS.map((m) => (
               <TouchableOpacity key={m} style={styles.methodTab} onPress={() => setMethod(m)}>
@@ -229,6 +255,16 @@ const styles = StyleSheet.create({
   cameraHintWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl },
   cameraText: { fontFamily: font.bodyBold, fontSize: type.statValue, color: tokens.cameraInk, marginBottom: 6 },
   cameraHint: { fontFamily: font.body, fontSize: type.label, color: tokens.cameraInkMuted, textAlign: 'center' },
+  permBtn: {
+    marginTop: 16,
+    backgroundColor: tokens.accent,
+    borderRadius: radius.card,
+    paddingHorizontal: 20,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permBtnText: { fontFamily: font.bodyBold, fontSize: type.body, color: tokens.surface },
   methodRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 },
   methodTab: { paddingHorizontal: 8, paddingVertical: 6 },
   methodText: { fontFamily: font.body, fontSize: type.label, color: tokens.inkFaint },
