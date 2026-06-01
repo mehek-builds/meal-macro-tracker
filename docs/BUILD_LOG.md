@@ -2,7 +2,7 @@
 
 **Project:** Personal AI nutrition / exercise / hydration tracker (surplus-first; muscle-gain + 2027 marathon goals), scaffolded from a 1,748-line PRD.
 **Repo:** https://github.com/mehek-builds/fitness-tracker
-**Last updated:** 2026-05-31 (main @ `e875f55`)
+**Last updated:** 2026-05-31 (main @ `5dd65a9`)
 
 > Living document, mirrored in the repo (docs/BUILD_LOG.md) and the notes vault. Append a dated entry to the Change Log and update the commit-arc table on each significant build change.
 
@@ -35,6 +35,8 @@
 ## 4. Commit arc
 
 ```
+5dd65a9  Wire live camera into scan screen (simulator fallback)
+139e07c  Bring BUILD_LOG current (chase + surplus/entitlement)
 e875f55  Wire confirmed scan items into the food log
 454ebd2  HealthKit entitlement + write usage string
 394c95e  Lower default calorie surplus to 300 (match PRD table)
@@ -64,7 +66,7 @@ Repo clean, local = remote. Backend: 252 tests passing; mobile `tsc --noEmit` cl
 
 ## 6. Standing caveats (cannot close from the build environment)
 
-1. **Not build/render-verified** - no Xcode or simulator available here. Real check: `cd mobile && npx expo run:ios` on a Mac.
+1. **Render-verified on the iOS Simulator** - the app builds clean and runs on the iPhone 17 Pro simulator (full UI, Metro-served). NOT yet verified on a physical device: on-device signing needs a paid Apple Developer Program account, since the HealthKit and push entitlements are paid-only (a free/personal team cannot provision them).
 2. **iOS-only** - `android/` was not generated (run `expo prebuild -p android` for parity).
 3. **Stubs are stubs** - AI photo scan / RAG, HealthKit sync, and Supabase persistence are placeholders.
 4. Design files cite PRD section numbers that do not exist in the 20-section PRD (cosmetic).
@@ -81,3 +83,4 @@ Repo clean, local = remote. Backend: 252 tests passing; mobile `tsc --noEmit` cl
 - **2026-05-31** - Initial scaffold through iOS prebuild and the "Nourish" design system. Backend at 252 passing tests; main at `a120eec`. See the commit arc above for the full sequence.
 - **2026-05-31** - Re-ran tester + reviewer. Tester confirmed mobile `tsc --noEmit` is clean (first compile-verification of the design-system + contract types). Reviewer found 0 criticals; 1 HIGH (the exercise net-calorie result leaked snake_case keys) fixed by modeling it as a `NetCalorieResult` CamelModel; plus LOW polish (CalorieRing morning-rule threshold, a `needs_recalc` wiring note, Settings now persists net-calorie-mode to the backend). Commit `c1e6bf6`.
 - **2026-05-31** - Chased the autonomous design/native session to completion, committing each settled wave after a tsc / JSON / no-junk check: MMKV store persistence, expo-dev-client removed, onboarding redesign, ring autosize, and scan-to-log wiring. Then the agreed follow-ups: lowered the default calorie surplus to 300 so targets match the PRD table (`394c95e`), added the HealthKit entitlement + write usage string for App Store compliance (`454ebd2`), and brought this log current. Backend 252 green and mobile tsc clean throughout. main at `e875f55`.
+- **2026-05-31** - First successful build + launch: ran the app on the **iPhone 17 Pro iOS Simulator** (Build Succeeded, 0 errors) via `DEVELOPER_DIR` against the installed Xcode 26.5, with Metro serving the bundle. This render-verifies the design system, navigation, and screens. Also wired live `expo-camera` into ScanScreen with a simulator fallback (`5dd65a9`). The physical-device build is blocked only on signing: a free Apple ID cannot provision the HealthKit/push entitlements, so on-device requires a paid Apple Developer Program enrollment. main at `5dd65a9`.
