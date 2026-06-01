@@ -39,8 +39,19 @@ function groupByMeal(entries: FoodLogEntry[]) {
   };
 }
 
-// Mock iron/calcium/magnesium/zinc consumed today.
-const MOCK_MICROS = { iron_mg: 6, calcium_mg: 320, magnesium_mg: 110, zinc_mg: 4 };
+/** Sum micronutrients actually consumed today from logged items (USDA fills
+ *  ironMg/calciumMg/etc. on each scan). Returns zeros when nothing is tracked. */
+function sumMicros(entries: FoodLogEntry[]) {
+  return entries.reduce(
+    (a, e) => ({
+      iron: a.iron + (e.item.ironMg ?? 0),
+      calcium: a.calcium + (e.item.calciumMg ?? 0),
+      magnesium: a.magnesium + (e.item.magnesiumMg ?? 0),
+      zinc: a.zinc + (e.item.zincMg ?? 0),
+    }),
+    { iron: 0, calcium: 0, magnesium: 0, zinc: 0 },
+  );
+}
 
 function SectionLabel({ children }: { children: string }): React.ReactElement {
   return <Text style={styles.sectionLabel}>{children}</Text>;
@@ -95,6 +106,7 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
   }, [syncHealth]);
 
   const meals = groupByMeal(todayLog);
+  const micros = sumMicros(todayLog);
 
   // Prefer the live HealthKit-derived cycle (from Apple Health / Clue) over the
   // store's backend value when available.
@@ -153,10 +165,10 @@ export function DashboardScreen({ onPressScan }: DashboardScreenProps): React.Re
         <View style={styles.block}>
           <SectionLabel>Micronutrients</SectionLabel>
           <MicronutrientRow
-            iron_mg={MOCK_MICROS.iron_mg}
-            calcium_mg={MOCK_MICROS.calcium_mg}
-            magnesium_mg={MOCK_MICROS.magnesium_mg}
-            zinc_mg={MOCK_MICROS.zinc_mg}
+            iron_mg={Math.round(micros.iron * 10) / 10}
+            calcium_mg={Math.round(micros.calcium)}
+            magnesium_mg={Math.round(micros.magnesium)}
+            zinc_mg={Math.round(micros.zinc * 10) / 10}
           />
         </View>
 
