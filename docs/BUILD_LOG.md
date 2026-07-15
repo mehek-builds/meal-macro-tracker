@@ -1,7 +1,7 @@
 # Fitness Tracker - Build Process & Decision Log
 
 **Project:** Personal AI nutrition / exercise / hydration tracker (surplus-first; muscle-gain + 2027 marathon goals), scaffolded from a 1,748-line PRD.
-**Repo:** https://github.com/mehek-builds/fitness-tracker
+**Repo:** https://github.com/mehek-builds/meal-macro-tracker
 **Last updated:** 2026-06-01 (main @ `d1ae86c`)
 
 > Living document, mirrored in the repo (docs/BUILD_LOG.md) and the notes vault. Append a dated entry to the Change Log and update the commit-arc table on each significant build change.
