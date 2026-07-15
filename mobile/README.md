@@ -1,4 +1,4 @@
-# Fitness Tracker - Mobile (Expo / React Native)
+# Nourish - Mobile (Expo / React Native)
 
 Personal AI nutrition-tracking app for lean muscle gain and marathon training. Scan a food photo, get a full nutritional breakdown in under 10 seconds, and log it. Exercise data flows in automatically from Apple Watch via HealthKit.
 

@@ -1,4 +1,4 @@
-# Fitness Tracker Backend
+# Nourish Backend
 
 FastAPI backend for a personal AI nutrition-tracking app (single user). Covers food photo
 scanning, calorie/macro tracking, exercise logging, water tracking, supplements, body

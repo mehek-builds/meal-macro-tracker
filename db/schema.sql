@@ -1,5 +1,5 @@
 -- ============================================================
--- Fitness Tracker - Supabase Postgres Schema
+-- Nourish - Supabase Postgres Schema
 -- Stack: Postgres + pgvector (Section 16)
 -- All PKs: uuid default uuid_generate_v4()
 -- All timestamps: timestamptz default now()

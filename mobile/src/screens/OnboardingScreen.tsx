@@ -258,7 +258,7 @@ function NavRow({ onNext, onBack, nextLabel = 'Next' }: { onNext: () => void; on
 function StepWelcome({ onNext }: StepProps): React.ReactElement {
   return (
     <View style={styles.stepContainer}>
-      <Text style={styles.title}>Welcome to Fitness Tracker</Text>
+      <Text style={styles.title}>Welcome to Nourish</Text>
       <Text style={styles.body}>
         This is a surplus-first nutrition app. Its job is to make sure you eat
         enough every day to build lean muscle and fuel marathon training.

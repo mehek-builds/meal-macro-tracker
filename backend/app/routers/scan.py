@@ -1,8 +1,10 @@
 """
-Scan endpoints — POST /scan/photo, /scan/barcode, /scan/label (PRD Section 7 / 16).
+Scan endpoints: POST /scan/photo, /scan/barcode, /scan/label (PRD Section 7 / 16).
 
-Photo and label scanning delegates to vision_router (stub).
-Barcode lookup: TODO(Section 4.2) — USDA + Open Food Facts.
+Photo scanning delegates to the real, key-gated vision_router (OpenAI GPT-4o
+primary, Anthropic Claude fallback), which re-grounds macros against USDA
+FoodData Central; with no API key configured it returns a labeled stub instead.
+Barcode and label lookups are still stubs: TODO(Section 4.2) USDA + Open Food Facts.
 """
 
 from __future__ import annotations
@@ -32,7 +34,9 @@ async def scan_photo(payload: ScanRequest) -> ScanResult:
     """
     Upload an image (base64) + optional LiDAR depth data.
     Returns a nutrition breakdown for each identified food item.
-    Delegates to the multi-model vision router (PRD Section 7.4 — currently stub).
+    Delegates to the multi-model vision router (PRD Section 7.4): OpenAI GPT-4o
+    primary, Anthropic Claude fallback, then USDA macro verification. Returns a
+    labeled stub only when no API key is configured.
     """
     # PRD Section 16 scan step 2: reject files >= 5MB before doing any work.
     if _approx_decoded_bytes(payload.image_b64) > settings.photo_max_bytes:

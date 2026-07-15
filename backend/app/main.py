@@ -27,7 +27,7 @@ from app.routers import (
 )
 
 app = FastAPI(
-    title="Fitness Tracker API",
+    title="Nourish API",
     description="Personal AI nutrition-tracking backend (PRD v2.0, May 2026)",
     version="0.1.0",
 )
@@ -68,7 +68,7 @@ def health() -> dict:
 @app.get("/", tags=["meta"])
 def root() -> dict:
     return {
-        "message": "Fitness Tracker API",
+        "message": "Nourish API",
         "docs": "/docs",
         "health": "/health",
     }
