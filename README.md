@@ -1,92 +1,248 @@
-# Fitness Tracker
+# Meal Macro Tracker (Nourish)
 
-A personal AI nutrition, exercise, and hydration tracker built around two parallel goals: gaining lean muscle mass and training for 6 marathons in 2027. The primary food input is a phone-camera photo: one photo, full nutritional breakdown, logged in seconds. Exercise flows in from Apple Watch via HealthKit; water is one tap.
+A photo-first nutrition, exercise, and hydration tracker: point the camera at a plate, and a few seconds later every food on it is identified, portioned, macro-broken-down, and logged. The app ships under the name **Nourish**; the codebase is a monorepo of a **FastAPI** backend and a native **Expo / React Native** iOS app.
 
-This is a **surplus-first** app. The job is making sure enough calories and protein are eaten every day, not restricting them. The calorie ring is inverted from a weight-loss app: the center number is calories *still needed*, and red means *under*, not over.
+This is not a single script. It is a full mobile product stack: a Python **FastAPI** service that runs a real vision pipeline (**OpenAI GPT-4o** as the primary food recognizer, **Anthropic Claude** as the fallback) and then re-grounds every macro against the official **USDA FoodData Central** database; a set of pure, unit-tested nutrition and training calculators (Mifflin-St Jeor energy math, net-calorie modes, MET workout estimates, supplement timing conflicts, menstrual-cycle phase adjustments); an **Expo SDK 51 / React Native 0.74** app with a bare native iOS build; real **Apple HealthKit** integration for workouts, active energy, body weight, and menstrual-flow data (including a hand-written Objective-C patch that adds a HealthKit query the upstream library was missing); a **Zustand + MMKV** persistence layer on the client; and a production **Supabase Postgres + pgvector** schema waiting behind the dev in-memory store. The backend's 252 tests pass.
 
-The full product spec lives in [docs/PRD.md](docs/PRD.md). This repository is the project scaffold generated from that PRD.
+---
 
-## Repository layout
+## The problem this solves
+
+Manual food logging is the single most abandoned habit in fitness apps, and the reason is mechanical, not motivational. To log a meal by hand you have to name every component, guess each portion, search a database that has forty near-identical entries for "chicken," and copy four macro numbers per item. It takes a minute or two per meal, it is boring, and it is wrong often enough that people stop trusting it. Adherence collapses within days.
+
+The photo is the obvious fix, and it is what modern trackers converge on: one picture, a few seconds, done. But turning a photo into a *trustworthy* log entry is hard for reasons that have nothing to do with taking the picture:
+
+1. **Identification is not the same as measurement.** A vision model can tell you the plate holds rice, dal, and a piece of naan. It is far shakier on *how much* of each, and portion size is where the calorie count actually lives. Getting "grilled chicken" right but guessing 120 g when it was 200 g still produces a wrong log. This system asks the model to do what it is good at (name the food, estimate the portion) and deliberately does not trust it for the macros.
+
+2. **A vision model's macro numbers are a guess, and guesses compound.** If you let GPT-4o report "310 calories" for the chicken and log that number, you have stacked one estimate (the portion) on top of another (the model's memory of chicken's macro density). The fix is to keep only the model's food name and gram estimate, then look up the *authoritative* per-100g values from USDA FoodData Central and scale them to the estimated portion. The model identifies; the government database supplies the numbers.
+
+3. **Food databases are messy and need ranking, not just search.** Query USDA for "broccoli" and you get raw broccoli, frozen broccoli, fried broccoli, and a dozen prepared FNDDS dishes, all with different macro profiles. Picking the wrong row silently corrupts the log. Correct behavior means preferring canonical single-ingredient datasets (Foundation, SR Legacy) over prepared-dish datasets, filtering out branded per-serving barcode entries, and reading the exact kilocalorie nutrient row rather than the kilojoule one.
+
+4. **A nutrition tracker is not only about calories in.** Real adherence needs the whole surrounding system: energy expenditure from Apple Watch, hydration targets that move with training load, supplement timing (iron and vitamin D3 fight each other and must be spaced two hours apart), and, for a menstruating athlete, luteal-phase calorie and protein bonuses that the app should apply automatically rather than making the user remember. Each of these is a small, exact calculation, and each is a place a naive app gets subtly wrong.
+
+5. **This one is inverted from every weight-loss app.** It is built surplus-first, for gaining lean mass. The calorie ring's center number is calories *still needed*, red means *under* target (eat more), and blue means the surplus was hit. Ending the day with calories remaining is the failure state, not the win. Every default, color, and copy decision had to be flipped from the restriction-first assumptions baked into the category.
+
+**Meal Macro Tracker is an attempt to solve all five as one product** rather than a photo-to-calories toy that nails the demo and ignores the rest of what makes logging stick.
+
+## Why you should care (even if you never track a meal)
+
+If you are reading this to understand what I can build, here is the short version: this repository takes a consumer AI feature that is easy to fake in a demo and builds the unglamorous correctness layer that makes it real. The vision call is ten lines; the interesting part is everything around it, refusing to trust the model's macros, re-grounding them against USDA, ranking messy database results, degrading cleanly when there is no API key, and never logging a fabricated food. It spans a typed Python async API, a real multi-provider LLM vision pipeline with structured-output parsing, an external nutrition-data client with retry and dataset-ranking logic, a native iOS app with genuine HealthKit reads (down to patching an Objective-C library to add a missing query), a design system with inverted domain semantics, and a production database schema with vector search designed in. And it is verified: 252 backend tests pass. The point is not any one technology; it is that a fuzzy AI feature has been wrapped in the discipline that separates a shippable product from a screenshot.
+
+---
+
+## System architecture
+
+The photo flows down through the vision pipeline and back up as a grounded, portioned log entry. Health and cycle data flow in from the device, independently, on the client.
 
 ```
-fitness-tracker/
-├── backend/     FastAPI service (Python 3.11+)        PRD Sections 7, 8, 9, 16
-├── mobile/      Expo + React Native app (TypeScript)  PRD Sections 4-15, 17
-├── db/          Postgres + pgvector schema            PRD Section 16
-├── docs/        The source PRD                         PRD (all)
-├── watch/       watchOS companion design notes         PRD Sections 9.6, 9.9, 17
-└── README.md
+      ┌─────────────────────────────────────────────────────────────────┐
+  On  │  Nourish app  (Expo SDK 51 / React Native 0.74, TypeScript)      │
+device│  Dashboard · Scan (camera) · Plan · Progress · Settings          │
+      │  Zustand + MMKV persistence · TanStack Query · Reanimated/Skia   │
+      └───────▲───────────────────────────────┬─────────────────────────┘
+              │ Apple HealthKit (on device)    │ base64 photo
+              │ react-native-health + patch    │ POST /scan/photo
+   ┌──────────┴───────────┐                    │
+   │ healthkit.ts          │                   ▼
+   │  active energy, steps,│   ┌────────────────────────────────────────┐
+   │  weight, workouts     │   │  FastAPI service  (async, Pydantic v2) │
+   │ cycle.ts              │   │  12 routers: scan · log · exercise ·   │
+   │  menstrual-flow reads │   │  user · water · supplements · cycle ·  │
+   └───────────────────────┘   │  measurements · bloodwork · training · │
+                               │  races · foods                         │
+                               └──────┬───────────────────────┬─────────┘
+                                      │                        │
+             ┌────────────────────────▼─────────┐   ┌──────────▼───────────────┐
+             │ Vision router (services/          │   │ Deterministic calculators │
+             │   vision_router.py)               │   │ services/calories.py      │
+             │  1. GPT-4o (primary), Claude      │   │  BMR · TDEE · surplus ·   │
+             │     (fallback): identify + portion│   │  macro split · luteal     │
+             │  2. structured JSON parse         │   │ net_calories · met ·      │
+             │  3. augment_with_usda: replace    │   │ supplements · cycle ·     │
+             │     macros with USDA values       │   │ water_goal                │
+             └────────────────┬──────────────────┘   └───────────────────────────┘
+                              │ food name + grams
+             ┌────────────────▼──────────────────┐
+             │ USDA FoodData Central client       │
+             │ services/usda.py                   │
+             │  search · dataset ranking ·        │
+             │  nutrient-number map · per-100g    │
+             │  scaling · retry/backoff           │
+             └────────────────────────────────────┘
+
+   Persistence:  dev = in-memory store (app/store.py)
+                 prod target = Supabase Postgres + pgvector  (db/schema.sql)
 ```
 
-| Area | Maps to PRD |
-|------|-------------|
-| `backend/app/services/calories.py` | Section 2: BMR / TDEE / surplus target / macros / luteal adjustment / 3 kg recalculation |
-| `backend/app/services/net_calories.py` | Section 9.7: fixed / eat-back / net calorie modes |
-| `backend/app/services/water_goal.py` | Section 10.1: rest-day vs training-day hydration targets |
-| `backend/app/services/met.py` | Section 9.5: MET-based manual workout estimate |
-| `backend/app/services/supplements.py` | Section 12: supplement timing-conflict logic |
-| `backend/app/services/cycle.py` | Section 11.3: cycle day, phase, luteal bonuses |
-| `backend/app/services/vision_router.py` | Section 7.4: multi-model vision router (stub) |
-| `backend/app/services/rag.py` | Section 7.6: USDA / IFCT RAG nutrition layer (stub) |
-| `backend/app/routers/*` | Section 16: every API endpoint |
-| `mobile/src/screens/*` | Sections 5, 6, 7, 12, 13, 14: dashboard, onboarding, scan, supplements, progress, settings |
-| `mobile/src/health/*` | Section 9, 11: HealthKit sync and cycle reads (stubs) |
-| `mobile/src/native/DepthCapture.ts` | Section 7.3: LiDAR / ARCore depth bridge (interface) |
+The backend is deliberately split into two kinds of code. The **deterministic calculators** (`backend/app/services/`) are pure Python with no I/O: given inputs they always return the same nutrition or training numbers, and they are exhaustively unit-tested. The **integration surfaces** (the vision router, the USDA client, the HealthKit bridge) touch the outside world, are gated on keys or native modules, and degrade to clearly labeled fallbacks when those are absent. The mobile app mirrors the backend's wire contract exactly (camelCase JSON via a `CamelModel` base), so the two halves cannot drift.
 
-## What works today vs. what is stubbed
+---
 
-This is a scaffold. The deterministic, no-dependency logic is implemented and unit-tested; everything that needs an external model, database, or native module is a clearly marked stub with a `TODO(Section X)` reference.
+## The full stack
 
-**Implemented for real (74 passing unit tests):**
+| Layer | Technologies |
+|-------|--------------|
+| **Mobile app** | Expo SDK 51, React Native 0.74.5, TypeScript 5.3, React Navigation (native-stack + bottom-tabs), Zustand + `persist` middleware, TanStack Query v5 |
+| **On-device state / storage** | `react-native-mmkv` (MMKV 2.4.0) as the Zustand storage engine, persisted and rehydrated on launch |
+| **Camera / scan** | `expo-camera` (`CameraView`, base64 capture), `expo-barcode-scanner`, `react-native-vision-camera` 4.7.3 |
+| **Health integration** | `react-native-health` (RNAppleHealthKit pod 1.7.0) with a local `patch-package` patch adding `getMenstrualFlowSamples`; `react-native-google-fit` for Android |
+| **UI / motion** | `react-native-reanimated` 3.10, `@shopify/react-native-skia`, `react-native-svg`, `lucide-react-native`; Fraunces / Hanken Grotesk / Space Grotesk via `@expo-google-fonts` |
+| **Native iOS** | Expo prebuild bare workflow: Objective-C(++) `AppDelegate`, Swift bridging header, `Info.plist`, HealthKit entitlement, `PrivacyInfo.xcprivacy`, CocoaPods (Hermes engine 0.74.5), Xcode project + workspace |
+| **Backend / API** | FastAPI (>=0.110), Uvicorn (standard), Pydantic v2 (>=2.6), pydantic-settings, python-multipart, httpx; CORS middleware, camelCase `CamelModel` wire contract |
+| **AI / vision** | OpenAI `gpt-4o` (primary) via the `openai` async SDK, Anthropic `claude-sonnet-4-6` (fallback) via the `anthropic` async SDK, `gpt-4o-mini` configured as the cheap tier; structured JSON-schema output, Pillow / NumPy available |
+| **Nutrition data** | USDA FoodData Central REST API (`api.nal.usda.gov/fdc/v1`) via httpx, `DEMO_KEY` default; Open Food Facts and IFCT planned |
+| **Deterministic domain logic** | Pure-Python calculators: Mifflin-St Jeor BMR/TDEE, surplus + macro split, net-calorie modes, MET table, supplement conflict windows, menstrual-cycle phase, water goal |
+| **Persistence** | Dev: in-memory dict store (`app/store.py`). Production target: Supabase Postgres + `pgvector` (`db/schema.sql`), `text-embedding-3-small` (1536-dim) `ivfflat` cosine index for food RAG |
+| **Testing / tooling** | pytest (252 backend tests, `backend/tests/`), FastAPI `TestClient`, `tsc` typecheck, `patch-package` postinstall, Hermes JS engine |
 
-- Calorie math: Mifflin-St Jeor BMR, TDEE, surplus target, macro split, luteal adjustment, 3 kg recalculation trigger
-- Net-calorie modes (fixed / eat-back / net)
-- Water-goal calculation (rest vs training day plus per-hour bonus)
-- MET workout-calorie estimate
-- Supplement timing-conflict detection (iron vs. D3 two-hour rule)
-- Menstrual cycle day and phase calculation with luteal bonuses
+---
 
-**Stubbed (returns labeled placeholder data, no external calls):**
+## The vision pipeline (`backend/app/services/vision_router.py`)
 
-- AI photo scan, the GPT-4o / Claude vision router, and the USDA / IFCT RAG lookup
-- Persistence: the backend uses an in-memory store; production uses Supabase (see `db/schema.sql`)
-- HealthKit / Google Fit sync, LiDAR / ARCore depth capture, and the watchOS companion app
+The scan is a two-stage pipeline that treats the language model and the nutrition database as good at different things.
 
-CRUD endpoints (log, water, supplements, measurements, bloodwork, exercise, races) round-trip through the in-memory store so the API is explorable end to end at `/docs`.
+**Stage 1: identify and portion.** `route_food_scan()` sends the base64 photo to a vision model with the `SCAN_SYSTEM_PROMPT` (`backend/app/prompts/scan.py`), which casts the model as a registered dietitian and asks it to (a) name every distinct food item, (b) estimate each portion's weight in grams using visible size references, and (c) return structured data only. The prompt ships with a strict `SCAN_RESPONSE_SCHEMA`, and the OpenAI path pins `response_format={"type": "json_object"}`, so the result parses deterministically. If optional LiDAR depth data is supplied, the prompt instructs the model to use it as the *primary* basis for portion estimation.
 
-## Quickstart
+- **Primary model:** OpenAI **GPT-4o** (`_call_openai`, model configurable via `vision_model_primary`).
+- **Fallback model:** Anthropic **Claude** (`_call_claude`, `vision_model_secondary`, default `claude-sonnet-4-6`), used when no OpenAI key is present.
+- **No-key fallback:** when neither key is configured, the endpoint returns a clearly flagged canned stub (`stub=True`) rather than failing, so the API stays explorable offline.
+
+**Stage 2: re-ground the macros against USDA.** This is the core correctness move. `_augment_with_usda()` throws away the model's calorie and macro guesses and replaces them with authoritative USDA FoodData Central values, scaled to the model's gram estimate. The model keeps credit for what it is good at (the food name and the portion); USDA supplies the trustworthy calories, protein, carbs, fat, and micronutrients. Each item records its provenance in `data_source`: `usda:<fdcId>` when a match was found, `model_estimate` when it was not, and `scan_notes` reports how many items were verified.
+
+The mobile client never fabricates food: in `mobile/src/screens/ScanScreen.tsx`, a failed or empty analysis returns the user to the viewfinder with an alert instead of logging a placeholder.
+
+## The USDA FoodData Central client (`backend/app/services/usda.py`)
+
+A real client against the official USDA API, not a canned table. Given a food name and a portion weight it returns per-100g macros and micros scaled to the portion, and it takes the messiness of the source data seriously:
+
+- **Dataset selection.** It queries the `Foundation`, `SR Legacy`, and `Survey (FNDDS)` datasets and *excludes* `Branded` on purpose (branded entries are per-serving barcode products that pollute generic meal queries).
+- **Result ranking.** Matches are ranked by dataset tier (`Foundation` > `SR Legacy` > `FNDDS`) before falling back to USDA's own relevance order, so "broccoli" resolves to "Broccoli, raw" rather than a fried preparation.
+- **Nutrient mapping.** It reads nutrients by their stable USDA nutrient numbers (208 energy, 203 protein, 204 fat, 205 carbs, plus 303/301/304/309 for iron, calcium, magnesium, zinc) and takes only the `KCAL` energy row, never the kilojoule one.
+- **Resilience.** An 8-second timeout, three attempts, and exponential backoff handle the `DEMO_KEY` throttle and transient 400/429/5xx responses; `lookup_macros_batch()` runs all of a meal's lookups concurrently with `asyncio.gather`.
+- **Zero-setup.** It defaults to the public `DEMO_KEY`; set `USDA_API_KEY` for a real (free) key with higher limits.
+
+The `pgvector` semantic-search layer over a pre-embedded USDA/IFCT/Open Food Facts corpus (`backend/app/services/rag.py`) is a deliberate stub: it returns canned per-100g values and is used *only* on the no-key path, so it can never clobber real model or USDA output. Its production design (embed with `text-embedding-3-small`, cosine search over the `foods_usda` table) is already expressed in `db/schema.sql`.
+
+## The deterministic calculators (`backend/app/services/`)
+
+Everything here is pure Python, no I/O, and unit-tested. This is the nutrition and training brain of the app.
+
+- **`calories.py`** implements the surplus-first energy model: Mifflin-St Jeor **BMR**, **TDEE** via five activity factors, a `daily_calorie_target` (build-muscle surplus, default +300; maintain; lose at -500), a macro split (protein at 2.9 g/kg, fat at 25% of calories, carbs as the remainder), a luteal bonus (+200 cal / +12 g protein), and a `needs_recalc` trigger that fires when the 7-day average weight has gained 3 kg since the last recalculation.
+- **`net_calories.py`** implements the three exercise-accounting modes from the spec: `fixed` (exercise is shown but does not change the budget), `eat_back` (active calories are added back), and `net` (compares food minus active against a BMR floor and tells you to eat more if you dip below it).
+- **`met.py`** estimates manual-workout calories from a MET table (`MET x weight_kg x hours`).
+- **`supplements.py`** encodes the supplement protocol and its timing conflicts: the iron-versus-vitamin-D3 two-hour rule is represented as a conflict-window map, and `check_conflicts` returns human-readable guidance plus the next safe time to take a dose.
+- **`cycle.py`** computes cycle day, phase (follicular / luteal), estimated cycle length, ovulation proximity, and the luteal bonuses from a list of period start dates.
+- **`water_goal.py`** computes the daily hydration target (2.5 L rest day, 3.0 L training day, +0.5 L per training hour) and converts to ounces.
+
+These are not cosmetic. `backend/app/routers/exercise.py` shows them composed: the `/exercise/summary/{date}` endpoint pulls the day's workouts and food totals, re-derives the user's luteal-adjusted target and BMR, and runs `calculate_net_calories` so the exercise budget stays in lockstep with the profile.
+
+## The API surface (`backend/app/main.py`, `backend/app/routers/`)
+
+A FastAPI service mounting twelve routers, all documented at `/docs`:
+
+`scan` (photo / barcode / label), `log` (food-log CRUD), `exercise` (workouts + net-calorie summary), `user` (profile + derived targets + net-calorie mode), `water`, `supplements` (log + conflict detection), `measurements` (body tape readings), `bloodwork` (lab markers + retest tracking), `cycle` (state + manual entry), `training` (marathon mode), `races` (race calendar), and `foods` (custom foods + search). The photo scan enforces a 5 MB upload ceiling (HTTP 413) before doing any work, and CORS is configured to safely downgrade credentials if a wildcard origin is set.
+
+The wire contract is camelCase JSON produced by a shared `CamelModel` Pydantic base, while Python keeps snake_case internally. `mobile/src/api/endpoints.ts` is a typed function per endpoint written against that contract, so a backend field rename surfaces as a TypeScript error rather than a silent runtime mismatch.
+
+Persistence today is an in-memory dict (`backend/app/store.py`), which every CRUD router round-trips through so the whole API is explorable end to end without a database. Production swaps this for Supabase; the full relational schema already exists.
+
+## Apple HealthKit integration (`mobile/src/health/`)
+
+The health reads are real, not mocked. `mobile/src/health/healthkit.ts` uses `react-native-health` to request read scopes (active and basal energy, steps, weight, workouts, heart rate, menstrual flow) and write scopes (weight, water), then `syncHealthKitForDay()` reads active calories, steps, latest body weight, and workouts in parallel for a given day. Apple Watch workouts are detected by inspecting the sample's `sourceName`. Every function rejects cleanly on non-iOS or unlinked builds, so the app degrades instead of crashing.
+
+The cycle reader (`mobile/src/health/cycle.ts`) is the most involved piece. It reads menstrual-flow samples from Apple Health (including data written by third-party apps like Clue), derives period-start dates by preferring Apple's `HKMetadataKeyMenstrualCycleStart` metadata and falling back to the first bleeding day after a gap, and then computes the same cycle state the backend does, so HealthKit-derived and manually entered state agree. It handles timezones carefully: dates are keyed in local time to avoid the UTC shift that would otherwise move a local-midnight sample to the previous day for users east of UTC (for example UTC+4), and stale data older than ~45 days is guarded so the app never reports "cycle day 180."
+
+## The native HealthKit patch (`mobile/patches/react-native-health+1.19.0.patch`)
+
+`react-native-health` does not ship a menstrual-flow query, so the repo adds one. The `patch-package` patch (applied automatically via the `postinstall` script) writes real Objective-C into the library: a `fetchMenstrualFlowSamplesForPredicate:` method that runs an `HKSampleQuery` against `HKCategoryTypeIdentifierMenstrualFlow`, maps each sample's category value to `none`/`light`/`medium`/`heavy`, reads the cycle-start metadata flag, and exposes it to JavaScript as `getMenstrualFlowSamples`. It also registers the `MenstrualFlow` read permission and adds the matching TypeScript declarations. This is a genuine native-module extension, not a configuration tweak.
+
+## The native iOS project (`mobile/ios/`)
+
+Because HealthKit, the camera, and the menstrual-flow patch all require native modules, the app runs on Expo's bare / prebuild workflow, and the generated iOS project is checked in. It includes the Objective-C(++) `AppDelegate` (`.h` / `.mm`) and `main.m`, a Swift bridging header plus a `noop-file.swift` (which forces Xcode to wire up the Swift toolchain the pods need), the `Info.plist` carrying the camera and HealthKit usage descriptions, a `.entitlements` file enabling `com.apple.developer.healthkit`, a `PrivacyInfo.xcprivacy` manifest declaring required-reason API usage with no tracking and no collected data types, the asset catalogs and splash storyboard, and the CocoaPods setup (`Podfile`, `Podfile.lock`, `Podfile.properties.json`) running the Hermes engine. The linked pods include `ExpoCamera` 15.0.16, `EXBarCodeScanner` 13.0.1, `RNAppleHealthKit` 1.7.0, `VisionCamera` 4.7.3, `RNReanimated` 3.10.1, `RNSVG` 15.2.0, and `MMKV` 2.4.0. Generated build artifacts (`Pods/`, `build/`, Hermes binaries) are kept out of git.
+
+## The mobile app (`mobile/`)
+
+`mobile/App.tsx` builds a five-tab bottom navigator (Home, Plan, a raised terracotta **Scan** FAB, Progress, Me) with onboarding as a pre-tab gate and the camera scan presented as a full-screen modal. Screens live in `mobile/src/screens/` (Dashboard, Onboarding, Scan, Supplements, Progress, Settings, Plan) and reusable pieces in `mobile/src/components/` (`CalorieRing`, `MacroBars`, `MealSection`, `MicronutrientRow`, `SupplementChecklist`, `WaterTracker`, `ExerciseLog`).
+
+Client state is a Zustand store (`mobile/src/state/useAppStore.ts`) persisted through MMKV, computing today's consumed and remaining calories and macros on the fly. Notably, it seeds the bloodwork log with a real lab panel rather than mock data, so the app has genuine deficiency context (vitamin D, ferritin, RDW) to reference and reason about.
+
+The **"Nourish" design system** (`mobile/src/theme/tokens.ts`) is a single source of color, spacing, type, and shape, and it encodes the surplus-first inversion directly: a warm off-white canvas, a terracotta accent, and semantic state colors where red means "under target, eat more" and blue is reserved as the success color for hitting the surplus. No component is allowed a raw hex value; everything references a token.
+
+## Production database schema (`db/schema.sql`)
+
+The production target is Supabase Postgres with `pgvector`. The schema defines `profiles`, `food_log_entries`, `custom_foods`, an embedded-food RAG table `foods_usda` (with a `vector(1536)` column and an `ivfflat` cosine index), `exercise_workouts`, `water_entries`, `supplements` and `supplement_logs`, `body_measurements`, `bloodwork_results`, `cycle_overrides`, and `races`, with UUID primary keys, `timestamptz` timestamps, check constraints, and per-user date indexes throughout. The routers do not yet read from it (they use the in-memory store); wiring `backend/app/db.py` to this schema is the persistence swap.
+
+---
+
+## Running it
 
 ### Backend
 
 ```bash
-cd backend
+git clone https://github.com/mehek-builds/meal-macro-tracker.git
+cd meal-macro-tracker/backend
+
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/uvicorn app.main:app --reload    # http://localhost:8000/docs
-.venv/bin/pytest -q                          # 74 passing tests
+.venv/bin/uvicorn app.main:app --reload      # http://localhost:8000/docs
 ```
 
-No environment variables are required to boot. Copy `backend/.env.example` to `backend/.env` and fill in keys only when wiring the real AI providers and Supabase.
+No environment variables are required to boot: the API imports and serves cleanly with no `.env`. Copy `backend/.env.example` to `backend/.env` and fill in keys to switch integrations from fallback to live:
+
+- `OPENAI_API_KEY` turns on the real GPT-4o vision path (`ANTHROPIC_API_KEY` enables the Claude fallback).
+- `USDA_API_KEY` upgrades the USDA client from the shared `DEMO_KEY` to a real key.
+- `SUPABASE_URL` / `SUPABASE_*_KEY` and `DATABASE_URL` are read for the production persistence swap.
+
+To enable the real vision providers, install the AI extra: `.venv/bin/pip install -e ".[ai]"` (adds `openai`, `anthropic`, `pillow`, `numpy`). The Supabase client lives behind the `data` extra.
 
 ### Mobile
 
 ```bash
 cd mobile
-npm install
+npm install                 # runs patch-package via postinstall
 npx expo start
 ```
 
-Set `EXPO_PUBLIC_API_URL` (see `mobile/.env.example`) to point the app at the backend. LiDAR, HealthKit, and the watchOS companion require a bare native build (`npx expo run:ios` / `run:android`), not Expo Go.
+Set `EXPO_PUBLIC_API_URL` (see `mobile/.env.example`, default `http://localhost:8000`) to point the app at your backend. HealthKit, the camera, the menstrual-flow patch, and Android Google Fit are native modules and are **not** available in Expo Go; they require a bare native build:
 
-## Tech stack
+```bash
+npx expo run:ios            # or run:android
+```
 
-- **Backend:** FastAPI, Pydantic v2, Supabase (Postgres + pgvector) in production
-- **Mobile:** Expo SDK 51, React Native 0.74, TypeScript, Zustand, TanStack Query
-- **AI:** GPT-4o + Claude vision routing with a USDA / IFCT RAG layer over the model's portion estimates
-- **Data:** USDA FoodData Central, Indian Food Composition Tables, Open Food Facts (all free)
+## Testing
 
-## Build status note
+The backend test suite is real and green (252 tests, ~1s):
 
-The backend was installed and its test suite run in the environment that generated this scaffold (74 passing). The mobile app's manifests are valid JSON and internally consistent, but a full `npm install`, `tsc`, and native build were **not** run here. Treat the mobile side as compile-ready scaffold, not a verified build.
+```bash
+cd backend
+.venv/bin/pytest -q
+```
 
-See [docs/PRD.md](docs/PRD.md) Section 19 for the four-phase implementation roadmap.
+It covers both the pure calculators (`test_calories`, `test_cycle`, `test_net_calories`, `test_supplements`, `test_water_goal`) and every API router through FastAPI's `TestClient` (`test_api_scan`, `test_api_exercise`, `test_api_user`, and the rest). The mobile app typechecks with `npm run typecheck` (`tsc --noEmit`).
+
+---
+
+## What is real vs. what is stubbed
+
+The correctness discipline of this repo includes being honest about its own edges. Every stub is clearly labeled in code and returns flagged placeholder data rather than pretending.
+
+| Capability | Status | Where |
+|-----------|--------|-------|
+| GPT-4o / Claude photo recognition | Real (key-gated; labeled stub with no key) | `services/vision_router.py` |
+| USDA FoodData Central macro lookup | Real (defaults to `DEMO_KEY`) | `services/usda.py` |
+| Calorie / macro / net-cal / MET / supplement / cycle / water math | Real, unit-tested | `services/*.py` |
+| Apple HealthKit reads (energy, steps, weight, workouts, menstrual flow) | Real, native | `mobile/src/health/*.ts`, native patch |
+| Client persistence (Zustand + MMKV) | Real | `mobile/src/state/useAppStore.ts` |
+| Backend persistence | In-memory (dev); Supabase schema ready, not yet wired | `app/store.py`, `db/schema.sql` |
+| pgvector RAG food search | Stub (used only on the no-key path) | `services/rag.py` |
+| Barcode + nutrition-label OCR scan | Stub | `routers/scan.py` |
+| LiDAR / ARCore depth capture | Stub interface | `mobile/src/native/DepthCapture.ts` |
+| watchOS companion app | Design only (future) | `watch/README.md` |
+
+The backend was installed and its full suite run in this environment (252 passing). The mobile manifests are valid and internally consistent, but a full `npm install`, native build, and on-device run were not performed here; treat the mobile side as compile-ready, not a verified device build.
+
+## Scope
+
+**In:** photo-first food logging with real AI recognition and USDA-grounded macros, surplus-first calorie and macro targeting, net-calorie exercise accounting, Apple HealthKit and Apple Watch sync, hydration and supplement tracking, menstrual-cycle-aware adjustments, body-measurement and bloodwork logs, and a marathon-training race calendar.
+
+**Out (for now):** the pgvector RAG lookup, barcode and label OCR, LiDAR depth-based portioning, the watchOS companion, and the live Supabase persistence swap. The design and schema for each already exist; they are wiring, not redesign.
