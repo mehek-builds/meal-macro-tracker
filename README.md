@@ -1,34 +1,6 @@
-# Meal Macro Tracker (Nourish)
+# Nourish
 
-A photo-first nutrition, exercise, and hydration tracker: point the camera at a plate, and a few seconds later every food on it is identified, portioned, macro-broken-down, and logged. The app ships under the name **Nourish**; the codebase is a monorepo of a **FastAPI** backend and a native **Expo / React Native** iOS app.
-
-This is not a single script. It is a full mobile product stack: a Python **FastAPI** service that runs a real vision pipeline (**OpenAI GPT-4o** as the primary food recognizer, **Anthropic Claude** as the fallback) and then re-grounds every macro against the official **USDA FoodData Central** database; a set of pure, unit-tested nutrition and training calculators (Mifflin-St Jeor energy math, net-calorie modes, MET workout estimates, supplement timing conflicts, menstrual-cycle phase adjustments); an **Expo SDK 51 / React Native 0.74** app with a bare native iOS build; real **Apple HealthKit** integration for workouts, active energy, body weight, and menstrual-flow data (including a hand-written Objective-C patch that adds a HealthKit query the upstream library was missing); a **Zustand + MMKV** persistence layer on the client; and a production **Supabase Postgres + pgvector** schema waiting behind the dev in-memory store. The backend's 252 tests pass.
-
----
-
-## The problem this solves
-
-Manual food logging is the single most abandoned habit in fitness apps, and the reason is mechanical, not motivational. To log a meal by hand you have to name every component, guess each portion, search a database that has forty near-identical entries for "chicken," and copy four macro numbers per item. It takes a minute or two per meal, it is boring, and it is wrong often enough that people stop trusting it. Adherence collapses within days.
-
-The photo is the obvious fix, and it is what modern trackers converge on: one picture, a few seconds, done. But turning a photo into a *trustworthy* log entry is hard for reasons that have nothing to do with taking the picture:
-
-1. **Identification is not the same as measurement.** A vision model can tell you the plate holds rice, dal, and a piece of naan. It is far shakier on *how much* of each, and portion size is where the calorie count actually lives. Getting "grilled chicken" right but guessing 120 g when it was 200 g still produces a wrong log. This system asks the model to do what it is good at (name the food, estimate the portion) and deliberately does not trust it for the macros.
-
-2. **A vision model's macro numbers are a guess, and guesses compound.** If you let GPT-4o report "310 calories" for the chicken and log that number, you have stacked one estimate (the portion) on top of another (the model's memory of chicken's macro density). The fix is to keep only the model's food name and gram estimate, then look up the *authoritative* per-100g values from USDA FoodData Central and scale them to the estimated portion. The model identifies; the government database supplies the numbers.
-
-3. **Food databases are messy and need ranking, not just search.** Query USDA for "broccoli" and you get raw broccoli, frozen broccoli, fried broccoli, and a dozen prepared FNDDS dishes, all with different macro profiles. Picking the wrong row silently corrupts the log. Correct behavior means preferring canonical single-ingredient datasets (Foundation, SR Legacy) over prepared-dish datasets, filtering out branded per-serving barcode entries, and reading the exact kilocalorie nutrient row rather than the kilojoule one.
-
-4. **A nutrition tracker is not only about calories in.** Real adherence needs the whole surrounding system: energy expenditure from Apple Watch, hydration targets that move with training load, supplement timing (iron and vitamin D3 fight each other and must be spaced two hours apart), and, for a menstruating athlete, luteal-phase calorie and protein bonuses that the app should apply automatically rather than making the user remember. Each of these is a small, exact calculation, and each is a place a naive app gets subtly wrong.
-
-5. **This one is inverted from every weight-loss app.** It is built surplus-first, for gaining lean mass. The calorie ring's center number is calories *still needed*, red means *under* target (eat more), and blue means the surplus was hit. Ending the day with calories remaining is the failure state, not the win. Every default, color, and copy decision had to be flipped from the restriction-first assumptions baked into the category.
-
-**Meal Macro Tracker is an attempt to solve all five as one product** rather than a photo-to-calories toy that nails the demo and ignores the rest of what makes logging stick.
-
-## Why you should care (even if you never track a meal)
-
-If you are reading this to understand what I can build, here is the short version: this repository takes a consumer AI feature that is easy to fake in a demo and builds the unglamorous correctness layer that makes it real. The vision call is ten lines; the interesting part is everything around it, refusing to trust the model's macros, re-grounding them against USDA, ranking messy database results, degrading cleanly when there is no API key, and never logging a fabricated food. It spans a typed Python async API, a real multi-provider LLM vision pipeline with structured-output parsing, an external nutrition-data client with retry and dataset-ranking logic, a native iOS app with genuine HealthKit reads (down to patching an Objective-C library to add a missing query), a design system with inverted domain semantics, and a production database schema with vector search designed in. And it is verified: 252 backend tests pass. The point is not any one technology; it is that a fuzzy AI feature has been wrapped in the discipline that separates a shippable product from a screenshot.
-
----
+Logging nutrition by hand is slow and error-prone, so people stop doing it. Nourish turns a photo of a meal into its calories and macros in seconds and syncs them to Apple Health.
 
 ## System architecture
 
